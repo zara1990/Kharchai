@@ -1,0 +1,273 @@
+KHARCHAI — MILESTONE 1: FASTAPI BACKEND FOUNDATION
+
+We are beginning development of KharchAI, an AI-powered Android financial copilot for Pakistan.
+
+IMPORTANT:
+This is ONLY the backend foundation milestone.
+
+Do not build the entire application.
+Do not implement receipt AI yet.
+Do not implement OpenAI yet.
+Do not implement Supabase yet.
+
+Our immediate goal is simply to create a clean, working FastAPI backend that we can verify before moving to the next milestone.
+
+==================================================
+1. INSPECT THE EXISTING PROJECT FIRST
+==================================================
+
+Before changing anything:
+
+1. Inspect the current repository and all existing files.
+2. Confirm the GitHub repository is already connected.
+3. Review the existing README and replit.md.
+4. Preserve anything already working.
+5. Do not rewrite or delete unrelated files.
+6. Do not introduce unnecessary dependencies.
+7. Do not create a second project or repository.
+
+The project will eventually contain both:
+- mobile/ — Expo React Native Android application
+- backend/ — Python FastAPI backend
+
+For THIS task, only work on the backend foundation.
+
+==================================================
+2. TARGET BACKEND STRUCTURE
+==================================================
+
+Create this backend structure:
+
+backend/
+├── main.py
+├── routes/
+│   └── __init__.py
+├── services/
+│   └── __init__.py
+├── models/
+│   └── __init__.py
+├── schemas/
+│   └── __init__.py
+└── utils/
+    └── __init__.py
+
+Do not create unnecessary files.
+
+==================================================
+3. FASTAPI APPLICATION
+==================================================
+
+Create a minimal FastAPI application in:
+
+backend/main.py
+
+The application must start successfully using Uvicorn.
+
+Add exactly one functional API endpoint for this milestone:
+
+GET /health
+
+It must return HTTP 200 with:
+
+{
+  "status": "ok"
+}
+
+Keep this endpoint simple.
+
+Do not add other application endpoints yet.
+
+==================================================
+4. API DOCUMENTATION
+==================================================
+
+FastAPI's normal interactive documentation should work.
+
+After starting the backend, confirm that the standard FastAPI documentation endpoint loads successfully.
+
+==================================================
+5. DEPENDENCIES
+==================================================
+
+Install only the dependencies actually required for this milestone.
+
+Use:
+- fastapi
+- uvicorn
+
+Do not install:
+- OpenAI SDK
+- Supabase SDK
+- LangChain
+- database libraries
+- OCR libraries
+- AI/ML libraries
+- authentication libraries
+- unrelated packages
+
+==================================================
+6. ENVIRONMENT / SECURITY
+==================================================
+
+Do not create or hardcode any API keys.
+
+Do not add OpenAI credentials.
+Do not add Supabase credentials.
+
+If environment configuration is needed, prepare it without real secrets.
+
+Ensure .gitignore prevents .env files and common Python generated files from being committed.
+
+Never put secrets in source code.
+
+==================================================
+7. DOCUMENTATION
+==================================================
+
+Update README.md with a concise section explaining:
+
+- KharchAI is an AI-powered financial copilot for Pakistan.
+- The current milestone is the FastAPI backend foundation.
+- The backend uses Python + FastAPI.
+- How to start the backend.
+- How to test GET /health.
+- Receipt AI/OpenAI integration is NOT implemented yet.
+
+Also create:
+
+docs/architecture.md
+
+Document only the planned high-level architecture:
+
+Android Expo App
+→ FastAPI Backend
+→ OpenAI Multimodal AI
+→ Structured JSON
+→ Validation
+→ Supabase
+→ Financial Calculations
+→ AI Financial Reasoning
+→ Android App
+
+Clearly state that this is the planned architecture and that most of these components are NOT implemented yet.
+
+Also create:
+
+docs/api-contract.md
+
+Document the FUTURE endpoint:
+
+POST /analyze-receipt
+
+Future input:
+
+multipart/form-data
+image: receipt image
+
+Future response concept:
+
+{
+  "merchant": "...",
+  "date": "...",
+  "currency": "PKR",
+  "total": 0,
+  "items": [
+    {
+      "name": "...",
+      "amount": 0,
+      "category": "..."
+    }
+  ]
+}
+
+IMPORTANT:
+Documentation only.
+
+DO NOT IMPLEMENT /analyze-receipt.
+
+==================================================
+8. STRICTLY OUT OF SCOPE
+==================================================
+
+Do NOT implement:
+
+- OpenAI
+- multimodal AI
+- receipt image processing
+- OCR
+- receipt extraction
+- AI categorization
+- Supabase
+- PostgreSQL
+- authentication
+- user accounts
+- transaction database
+- dashboard
+- charts
+- financial calculations
+- Ask My Money
+- RAG
+- vector databases
+- AI agents
+- payment screenshot processing
+- bank integrations
+- Android/mobile application
+- camera functionality
+
+==================================================
+9. TEST BEFORE REPORTING COMPLETION
+==================================================
+
+After implementation:
+
+1. Install only required dependencies.
+2. Start the FastAPI backend.
+3. Confirm there are no startup errors.
+4. Test GET /health.
+5. Confirm HTTP status is 200.
+6. Confirm response is exactly:
+
+{
+  "status": "ok"
+}
+
+7. Confirm FastAPI interactive documentation loads.
+8. If anything fails, diagnose and fix it before reporting completion.
+
+Do not simply claim that testing passed. Actually test it.
+
+==================================================
+10. VIBE-CODING RULES
+==================================================
+
+Follow these rules strictly:
+
+- Inspect first.
+- Preserve existing functionality.
+- Make the smallest changes necessary.
+- Do not rewrite the project unnecessarily.
+- Do not add unnecessary dependencies.
+- Do not expand the scope.
+- Never hardcode secrets.
+- Test your changes.
+- Fix errors before reporting completion.
+
+==================================================
+11. FINAL REPORT
+==================================================
+
+When finished, report:
+
+1. Files created.
+2. Files modified.
+3. Dependencies installed.
+4. How to start the backend.
+5. The exact URL/path used to test /health.
+6. Actual test result.
+7. Whether FastAPI documentation loaded.
+8. Any warnings/issues.
+9. Confirm that OpenAI, Supabase, receipt AI, and Android functionality were NOT implemented.
+
+STOP after this milestone.
+
+Do NOT automatically start the next milestone.

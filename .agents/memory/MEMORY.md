@@ -1,0 +1,1 @@
+- [KharchAI project conventions](kharchai-conventions.md) — milestone-by-milestone build; inspect repo before changes; no speculative features.
