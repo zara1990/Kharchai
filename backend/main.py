@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from routes.debug import router as debug_router
 from routes.receipt import router as receipt_router
 
 app = FastAPI(
@@ -9,6 +10,7 @@ app = FastAPI(
 )
 
 app.include_router(receipt_router)
+app.include_router(debug_router)
 
 
 @app.get("/health")
