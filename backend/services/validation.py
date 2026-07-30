@@ -1,124 +1,155 @@
-import logging
-from dataclasses import dataclass, field
-from typing import List, Optional
+"""
+Receipt Validation Service.
 
-from schemas.receipt import ReceiptAnalysisResponse, ReceiptItem
+Validates the JSON returned by OpenAI before it reaches the Android app.
+Runs as the final step in the pipeline, after image quality checking and
+OpenAI extraction.
+
+Pipeline position:
+    Upload → Image Quality → OpenAI Analysis → Receipt Validation → Response
+"""
+
+import logging
+from typing import Optional
+
+from schemas.receipt import ReceiptAnalysisResponse, ReceiptValidationReport
 
 logger = logging.getLogger(__name__)
 
+# ── Pakistani currency aliases normalised to PKR ──────────────────────────────
+# Add further local variants here as they are discovered in the wild.
+PKR_ALIASES = {"rs", "rs.", "pkr", "rupees", "rupee", "روپے", "روپیہ"}
 
-@dataclass
-class ValidationIssue:
-    """A single validation problem found in the AI-extracted data."""
-    field: str
-    message: str
-
-
-@dataclass
-class ValidationReport:
-    """Outcome of all validation checks for one extracted receipt."""
-    valid: bool
-    confidence: float          # 0.0–1.0
-    issues: List[ValidationIssue] = field(default_factory=list)
+# ── Total reconciliation tolerance ───────────────────────────────────────────
+# A mismatch is flagged only when it exceeds BOTH the flat and percentage floors,
+# so small rounding differences on low-value receipts are not surfaced.
+TOTAL_FLAT_TOLERANCE = 1.0      # ±1 currency unit (covers typical rounding)
+TOTAL_PCT_TOLERANCE  = 0.02     # ±2 % of the extracted total
 
 
-class ValidationService:
+class ReceiptValidationService:
     """
-    Validates and scores AI-extracted receipt data.
+    Validates AI-extracted receipt data against business rules.
 
-    All methods currently return placeholder results.
+    The single public entry point is:
+        validate_receipt(receipt_json: ReceiptAnalysisResponse)
+            -> ReceiptValidationReport
 
-    TODO (future milestone): implement each check with real business rules
-    once the extraction quality is confirmed to be reliable.
+    The method mutates `receipt_json.currency` in place when a Pakistani
+    currency alias is detected and normalises it to "PKR".
     """
 
-    def validate_required_fields(
-        self, receipt: ReceiptAnalysisResponse
-    ) -> List[ValidationIssue]:
+    def validate_receipt(
+        self, receipt_json: ReceiptAnalysisResponse
+    ) -> ReceiptValidationReport:
         """
-        Check that all mandatory fields are present and non-null.
+        Run all validation rules against extracted receipt data.
 
-        Required fields: merchant_name, purchase_date, currency,
-        total_amount, items (non-empty list).
-
-        TODO: Implement by inspecting each field on the receipt object and
-              appending a ValidationIssue for every missing or null value.
+        Errors   → hard problems that indicate the data cannot be trusted
+                   (missing total, empty items, negative prices/quantities).
+        Warnings → soft issues worth surfacing to the user but not blocking
+                   (missing merchant/date, total mismatch, duplicates).
 
         Args:
-            receipt: The AI-extracted receipt data to validate.
+            receipt_json: The ReceiptAnalysisResponse produced by OpenAI.
+                          currency field may be mutated to "PKR" if normalised.
 
         Returns:
-            List of ValidationIssue — empty list means all required fields
-            are present.
+            ReceiptValidationReport with valid flag, warnings, errors,
+            calculated_total, and difference from extracted total.
         """
-        # TODO: implement required-field validation
-        logger.debug("validate_required_fields called — returning placeholder result")
-        return []
+        warnings: list[str] = []
+        errors:   list[str] = []
+        calculated_total: Optional[float] = None
+        difference:       Optional[float] = None
 
-    def validate_totals(
-        self, receipt: ReceiptAnalysisResponse
-    ) -> List[ValidationIssue]:
-        """
-        Verify that the sum of item total_prices matches the receipt total_amount.
+        # ── A. Merchant name ─────────────────────────────────────────────────
+        if not receipt_json.merchant_name or not receipt_json.merchant_name.strip():
+            warnings.append("Merchant name is missing from the receipt.")
 
-        TODO: Implement by summing item.total_price for all items and
-              comparing against receipt.total_amount with a small tolerance
-              (e.g. ±0.05) to account for rounding.
+        # ── B. Purchase date ─────────────────────────────────────────────────
+        if not receipt_json.purchase_date or not receipt_json.purchase_date.strip():
+            warnings.append("Purchase date is missing from the receipt.")
 
-        Args:
-            receipt: The AI-extracted receipt data to validate.
+        # TODO: validate purchase_date conforms to YYYY-MM-DD (future rule).
 
-        Returns:
-            List of ValidationIssue — empty list means totals are consistent.
-        """
-        # TODO: implement total reconciliation
-        logger.debug("validate_totals called — returning placeholder result")
-        return []
+        # ── C. Total amount — hard error ─────────────────────────────────────
+        if receipt_json.total_amount is None:
+            errors.append("Total amount is missing from the receipt.")
 
-    def calculate_confidence(
-        self,
-        receipt: ReceiptAnalysisResponse,
-        issues: Optional[List[ValidationIssue]] = None,
-    ) -> float:
-        """
-        Produce a 0.0–1.0 confidence score for the extracted receipt data.
+        # ── D. Items list — hard error ───────────────────────────────────────
+        if not receipt_json.items:
+            errors.append("No line items were extracted from the receipt.")
 
-        TODO: Implement a weighted scoring model:
-              - Start at 1.0.
-              - Deduct for each missing required field (e.g. -0.2 each).
-              - Deduct for total mismatch (e.g. -0.3).
-              - Deduct for empty items list (e.g. -0.2).
-              - Clamp result to [0.0, 1.0].
+        # ── E–H require at least one item ────────────────────────────────────
+        if receipt_json.items:
+            seen_names: set[str] = set()
 
-        Args:
-            receipt: The AI-extracted receipt data.
-            issues:  Optional pre-computed list of ValidationIssues; if None,
-                     validate_required_fields and validate_totals are re-run.
+            for item in receipt_json.items:
+                name_key = (item.item_name or "").strip().lower()
 
-        Returns:
-            Float confidence score between 0.0 and 1.0.
-        """
-        # TODO: implement confidence scoring
-        logger.debug("calculate_confidence called — returning placeholder result")
-        return 1.0
+                # E. Negative total / unit price ─────────────────────────────
+                if item.total_price < 0:
+                    errors.append(
+                        f"Negative total price for '{item.item_name}': {item.total_price}."
+                    )
+                if item.unit_price is not None and item.unit_price < 0:
+                    errors.append(
+                        f"Negative unit price for '{item.item_name}': {item.unit_price}."
+                    )
 
-    def run_all(self, receipt: ReceiptAnalysisResponse) -> ValidationReport:
-        """
-        Run all validation checks and return a consolidated report.
+                # F. Negative quantity ────────────────────────────────────────
+                if item.quantity is not None and item.quantity < 0:
+                    errors.append(
+                        f"Negative quantity for '{item.item_name}': {item.quantity}."
+                    )
 
-        Args:
-            receipt: The AI-extracted receipt data to validate.
+                # H. Duplicate detection (collect names first) ────────────────
+                if name_key in seen_names:
+                    warnings.append(
+                        f"Duplicate line item detected: '{item.item_name}'."
+                    )
+                seen_names.add(name_key)
 
-        Returns:
-            ValidationReport with a validity flag, confidence score, and
-            list of issues found.
-        """
-        issues: List[ValidationIssue] = []
-        issues.extend(self.validate_required_fields(receipt))
-        issues.extend(self.validate_totals(receipt))
-        confidence = self.calculate_confidence(receipt, issues)
-        return ValidationReport(
-            valid=len(issues) == 0,
-            confidence=confidence,
-            issues=issues,
+            # G. Total reconciliation ─────────────────────────────────────────
+            calculated_total = round(
+                sum(i.total_price for i in receipt_json.items), 2
+            )
+            if receipt_json.total_amount is not None:
+                raw_diff = abs(calculated_total - receipt_json.total_amount)
+                tolerance = max(
+                    TOTAL_FLAT_TOLERANCE,
+                    receipt_json.total_amount * TOTAL_PCT_TOLERANCE,
+                )
+                difference = round(raw_diff, 2)
+                if raw_diff > tolerance:
+                    warnings.append(
+                        f"Calculated total ({calculated_total}) differs from extracted "
+                        f"total ({receipt_json.total_amount}) by {difference}."
+                    )
+
+        # ── I. Pakistani currency normalisation ──────────────────────────────
+        if receipt_json.currency:
+            if receipt_json.currency.strip().lower() in PKR_ALIASES:
+                receipt_json.currency = "PKR"
+        # Foreign currencies (USD, EUR, GBP, …) are left unchanged.
+
+        # TODO: Add future validation rules below this line:
+        #   - Validate currency against ISO 4217 whitelist.
+        #   - Validate item categories against an allowed taxonomy.
+        #   - Flag outlier amounts (unusually high single items).
+        #   - Cross-check merchant name against a known store registry.
+        #   - Validate GST / tax line items for Pakistani fiscal compliance.
+
+        logger.debug(
+            "Validation complete — errors=%d warnings=%d calculated_total=%s",
+            len(errors), len(warnings), calculated_total,
+        )
+
+        return ReceiptValidationReport(
+            valid=len(errors) == 0,
+            warnings=warnings,
+            errors=errors,
+            calculated_total=calculated_total,
+            difference=difference,
         )

@@ -3,6 +3,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from schemas.receipt import ReceiptUploadResponse
 from services.image_quality import ImageQualityService
 from services.receipt_analysis import ReceiptAnalysisService
+from services.validation import ReceiptValidationService
 
 router = APIRouter(prefix="/api/v1/receipt", tags=["Receipt"])
 
@@ -15,8 +16,9 @@ ALLOWED_IMAGE_TYPES = {
     "image/tiff",
 }
 
-_quality_service = ImageQualityService()
-_receipt_service = ReceiptAnalysisService()
+_quality_service    = ImageQualityService()
+_receipt_service    = ReceiptAnalysisService()
+_validation_service = ReceiptValidationService()
 
 
 @router.post(
@@ -25,10 +27,10 @@ _receipt_service = ReceiptAnalysisService()
     summary="Upload a receipt image for AI analysis",
     description=(
         "Accepts a receipt image (JPEG, PNG, GIF, WebP, BMP, TIFF). "
-        "Runs image quality validation first — returns HTTP 400 if the image "
-        "fails quality checks (too blurry, too dark/bright, or too low resolution). "
-        "On pass or warning, sends the image to OpenAI Vision (gpt-4.1-mini) and "
-        "returns structured receipt data alongside the quality report."
+        "Pipeline: content-type check → image quality validation → "
+        "OpenAI Vision extraction → receipt validation → JSON response. "
+        "Returns HTTP 400 if image quality fails. "
+        "On success, returns quality report, validation report, and extracted receipt data."
     ),
 )
 async def upload_receipt(file: UploadFile = File(...)):
@@ -43,15 +45,13 @@ async def upload_receipt(file: UploadFile = File(...)):
             },
         )
 
-    # ── 2. Read bytes once (used by both services) ────────────────────────────
+    # ── 2. Read bytes once (reused by all services) ───────────────────────────
     image_bytes = await file.read()
 
     # ── 3. Image quality validation ───────────────────────────────────────────
     quality = _quality_service.validate_image(image_bytes)
 
     if not quality.passed:
-        # Hard failure — return 400 with the quality report so the client
-        # can show the user exactly what needs to be fixed.
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -60,14 +60,19 @@ async def upload_receipt(file: UploadFile = File(...)):
             },
         )
 
-    # ── 4. PASS or WARNING — proceed to OpenAI analysis ───────────────────────
+    # ── 4. OpenAI Vision extraction ───────────────────────────────────────────
     receipt = await _receipt_service.process_bytes(
         image_bytes, file.filename, file.content_type
     )
 
-    # ── 5. Return combined response ───────────────────────────────────────────
+    # ── 5. Receipt validation (runs even when OpenAI returned an error status,
+    #        so the caller always gets a validation block in the response) ──────
+    validation = _validation_service.validate_receipt(receipt)
+
+    # ── 6. Return combined response ───────────────────────────────────────────
     return ReceiptUploadResponse(
         status=receipt.status,   # "analysed" | "error"
         quality=quality,
+        validation=validation,
         receipt=receipt,
     )

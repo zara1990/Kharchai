@@ -41,9 +41,20 @@ class ImageQualityReport(BaseModel):
     quality_score: int             # 0–100
 
 
-# ── Top-level upload response (wraps quality + receipt) ───────────────────────
+# ── Receipt validation report ─────────────────────────────────────────────────
+
+class ReceiptValidationReport(BaseModel):
+    valid: bool
+    warnings: List[str]
+    errors: List[str]
+    calculated_total: Optional[float] = None   # sum of line-item total_prices
+    difference: Optional[float] = None         # |calculated_total - total_amount|
+
+
+# ── Top-level upload response ─────────────────────────────────────────────────
 
 class ReceiptUploadResponse(BaseModel):
-    status: str                                    # "analysed" | "error"
+    status: str                                        # "analysed" | "error"
     quality: ImageQualityReport
+    validation: Optional[ReceiptValidationReport] = None  # None if OpenAI failed
     receipt: Optional[ReceiptAnalysisResponse] = None
