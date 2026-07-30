@@ -1,6 +1,6 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from schemas.receipt import ReceiptUploadResponse
+from schemas.receipt import ReceiptAnalysisResponse
 from services.receipt import ReceiptService
 
 router = APIRouter(prefix="/api/v1/receipt", tags=["Receipt"])
@@ -19,11 +19,13 @@ _receipt_service = ReceiptService()
 
 @router.post(
     "/upload",
-    response_model=ReceiptUploadResponse,
-    summary="Upload a receipt image",
+    response_model=ReceiptAnalysisResponse,
+    summary="Upload a receipt image for AI analysis",
     description=(
-        "Accepts a receipt image file (JPEG, PNG, GIF, WebP, BMP, TIFF). "
-        "Returns file metadata. OCR/AI analysis is not implemented yet."
+        "Accepts a receipt image (JPEG, PNG, GIF, WebP, BMP, TIFF). "
+        "Sends the image to OpenAI Vision (gpt-4.1-mini) and returns "
+        "structured receipt data including merchant, date, currency, "
+        "total amount, and itemised line items."
     ),
 )
 async def upload_receipt(file: UploadFile = File(...)):
@@ -38,5 +40,5 @@ async def upload_receipt(file: UploadFile = File(...)):
             },
         )
 
-    # Delegate all processing to the service layer.
+    # Delegate processing and AI analysis to the service layer.
     return await _receipt_service.process(file)
