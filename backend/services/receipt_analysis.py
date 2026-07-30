@@ -3,7 +3,6 @@ import json
 import logging
 import os
 
-from fastapi import UploadFile
 from openai import AsyncOpenAI, OpenAIError
 
 from schemas.receipt import ReceiptAnalysisResponse, ReceiptItem
@@ -50,23 +49,37 @@ class ReceiptAnalysisService:
         api_key = os.environ.get("OPENAI_API_KEY")
         self._client = AsyncOpenAI(api_key=api_key) if api_key else None
 
-    async def process(self, file: UploadFile) -> ReceiptAnalysisResponse:
+    async def process(self, file) -> ReceiptAnalysisResponse:
         """
-        Read the uploaded image, send it to OpenAI Vision, and return
-        structured receipt data.
+        Convenience wrapper: reads bytes from an UploadFile then delegates
+        to process_bytes().  Kept for backward compatibility.
+        """
+        image_bytes: bytes = await file.read()
+        return await self.process_bytes(image_bytes, file.filename, file.content_type)
+
+    async def process_bytes(
+        self,
+        image_bytes: bytes,
+        filename: str,
+        content_type: str,
+    ) -> ReceiptAnalysisResponse:
+        """
+        Send pre-read image bytes to OpenAI Vision and return structured data.
+
+        This is the primary entry point when the caller has already read the
+        bytes (e.g. the route layer read them for quality checking first).
 
         Args:
-            file: Validated image UploadFile (content-type already checked by
-                  the route layer before this method is called).
+            image_bytes:  Raw image bytes.
+            filename:     Original file name (for the response metadata).
+            content_type: MIME type string (e.g. "image/jpeg").
 
         Returns:
             ReceiptAnalysisResponse with file metadata and AI-extracted fields.
         """
-        image_bytes: bytes = await file.read()
-
         base_meta = dict(
-            filename=file.filename,
-            content_type=file.content_type,
+            filename=filename,
+            content_type=content_type,
             size_bytes=len(image_bytes),
         )
 
@@ -80,7 +93,7 @@ class ReceiptAnalysisService:
 
         # Base64-encode the image for the Vision API.
         b64_image = base64.b64encode(image_bytes).decode("utf-8")
-        data_url = f"data:{file.content_type};base64,{b64_image}"
+        data_url = f"data:{content_type};base64,{b64_image}"
 
         try:
             response = await self._client.chat.completions.create(

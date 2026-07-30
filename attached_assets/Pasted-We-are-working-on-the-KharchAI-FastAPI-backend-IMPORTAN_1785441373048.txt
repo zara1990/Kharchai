@@ -1,0 +1,144 @@
+We are working on the KharchAI FastAPI backend.
+
+IMPORTANT:
+- Inspect the existing project first.
+- Preserve all working functionality.
+- Do not rewrite existing receipt analysis.
+- Use environment variables only.
+- Test before finishing.
+- Report files changed and testing steps.
+
+GOAL:
+Implement an MVP Image Quality Validation Service that runs BEFORE OpenAI receipt analysis.
+
+Requirements:
+
+1. Create:
+backend/services/image_quality.py
+
+2. Use OpenCV (cv2) for image analysis.
+
+If OpenCV is not installed, install only the minimum required package.
+
+3. Create an ImageQualityService class.
+
+It should expose:
+
+validate_image(image_bytes)
+
+4. Perform these checks:
+
+A. Blur Detection
+Use variance of Laplacian.
+
+Return:
+
+status:
+- PASS
+- WARNING
+- FAIL
+
+If extremely blurry:
+Return FAIL.
+
+If slightly blurry:
+Return WARNING.
+
+B. Brightness
+
+Calculate average grayscale brightness.
+
+Detect:
+
+Too Dark
+
+Too Bright
+
+C. Resolution
+
+Reject images smaller than approximately:
+
+1000 px width
+OR
+1000 px height
+
+Return FAIL.
+
+D. Long Receipt Detection
+
+Estimate aspect ratio.
+
+If receipt height is much larger than width
+(example >3.5:1)
+
+Return:
+
+is_long_receipt = true
+
+Do NOT reject.
+
+Return a warning message:
+
+"This receipt looks very long. Capture it in 2–3 overlapping photos for better accuracy."
+
+5. Create response object:
+
+{
+  "passed": true,
+  "warnings": [],
+  "errors": [],
+  "is_long_receipt": false,
+  "quality_score": 0-100
+}
+
+6. Integrate this validation into the upload endpoint.
+
+Flow becomes:
+
+Upload
+↓
+
+Image Quality Validation
+↓
+
+If FAIL
+Return HTTP 400 with descriptive message.
+
+If PASS or WARNING
+Continue to OpenAI analysis.
+
+7. Return warnings alongside the receipt JSON.
+
+Example:
+
+{
+  "status":"analysed",
+  "quality":{
+      ...
+  },
+  "receipt":{...}
+}
+
+8. Add clear comments where future validation rules can be added.
+
+9. Test with:
+
+✓ clear receipt
+
+✓ blurry receipt
+
+✓ dark receipt
+
+✓ bright receipt
+
+✓ long receipt
+
+10. Report:
+
+Files changed
+
+Packages installed
+
+Test results
+
+How to verify through Swagger.

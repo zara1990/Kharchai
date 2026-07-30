@@ -1,171 +1,188 @@
+"""
+Image Quality Service — MVP implementation using OpenCV.
+
+Runs BEFORE OpenAI receipt analysis to gate out images that will
+produce poor or unreliable extraction results.
+
+Future checks to add here:
+  - Glare detection (bright-pixel proportion threshold)
+  - Receipt presence detection (aspect ratio + white-region heuristics)
+  - Perspective / skew correction hint
+  - Multi-page / stitching recommendation for very long receipts
+"""
+
 import logging
-from dataclasses import dataclass, field
-from typing import Optional
+
+import cv2
+import numpy as np
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# ── Tunable thresholds ────────────────────────────────────────────────────────
+BLUR_FAIL_THRESHOLD = 50.0        # Laplacian variance below this → FAIL
+BLUR_WARN_THRESHOLD = 100.0       # below this (but above FAIL) → WARNING
+BRIGHTNESS_TOO_DARK = 50          # mean pixel below this → too dark (FAIL)
+BRIGHTNESS_DARK_WARN = 70         # below this (but above TOO_DARK) → WARNING
+BRIGHTNESS_TOO_BRIGHT = 220       # above this → overexposed (FAIL)
+BRIGHTNESS_BRIGHT_WARN = 200      # above this (but below TOO_BRIGHT) → WARNING
+MIN_DIMENSION_PX = 1000           # minimum width AND height in pixels
+LONG_RECEIPT_RATIO = 3.5          # height / width ratio above this → long receipt
 
-@dataclass
-class ImageQualityResult:
-    """Holds the outcome of a single image quality check."""
+
+class ImageQualityReport(BaseModel):
+    """Serialisable result returned to the API consumer."""
     passed: bool
-    score: Optional[float] = None   # 0.0–1.0 where applicable
-    detail: Optional[str] = None
+    warnings: list[str]
+    errors: list[str]
+    is_long_receipt: bool
+    quality_score: int             # 0–100
 
 
-@dataclass
-class ImageQualityReport:
-    """Aggregated result of all quality checks for one image."""
-    blur: ImageQualityResult = field(default_factory=lambda: ImageQualityResult(passed=False))
-    brightness: ImageQualityResult = field(default_factory=lambda: ImageQualityResult(passed=False))
-    glare: ImageQualityResult = field(default_factory=lambda: ImageQualityResult(passed=False))
-    resolution: ImageQualityResult = field(default_factory=lambda: ImageQualityResult(passed=False))
-    receipt_present: ImageQualityResult = field(default_factory=lambda: ImageQualityResult(passed=False))
-    long_receipt: ImageQualityResult = field(default_factory=lambda: ImageQualityResult(passed=False))
-
-    @property
-    def overall_passed(self) -> bool:
-        """True only when every check passes."""
-        return all([
-            self.blur.passed,
-            self.brightness.passed,
-            self.glare.passed,
-            self.resolution.passed,
-            self.receipt_present.passed,
-        ])
+def _decode(image_bytes: bytes):
+    """Decode raw bytes to a BGR cv2 image array, or return None on failure."""
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
 
 class ImageQualityService:
     """
-    Analyses receipt image quality before AI extraction.
+    Analyses receipt image quality using OpenCV.
 
-    Each method is a standalone check so they can be added incrementally.
-    All methods currently return placeholder results.
-
-    TODO (future milestone): replace each stub with a real OpenCV / PIL
-    implementation once the image processing layer is introduced.
+    All logic is synchronous / CPU-bound.  The single public entry point is
+    `validate_image(image_bytes) -> ImageQualityReport`.
     """
 
-    async def detect_blur(self, image_bytes: bytes) -> ImageQualityResult:
-        """
-        Detect whether the image is too blurry for reliable text extraction.
+    # ── Public entry point ───────────────────────────────────────────────────
 
-        TODO: Implement using Laplacian variance (OpenCV).
-              A variance below ~100 typically indicates blur.
+    def validate_image(self, image_bytes: bytes) -> ImageQualityReport:
+        """
+        Run all quality checks and return a consolidated report.
+
+        Returns a report with passed=False and a descriptive error list when
+        the image cannot be decoded or fails a hard check.  Soft issues
+        produce warnings but still allow analysis to proceed.
 
         Args:
-            image_bytes: Raw image bytes (JPEG / PNG).
+            image_bytes: Raw image bytes (JPEG / PNG / WebP / BMP / TIFF).
 
         Returns:
-            ImageQualityResult with passed=True when sharpness is sufficient.
+            ImageQualityReport with passed, warnings, errors, is_long_receipt,
+            quality_score (0–100).
         """
-        # TODO: implement blur detection
-        logger.debug("detect_blur called — returning placeholder result")
-        return ImageQualityResult(passed=True, detail="Blur check not yet implemented")
+        warnings: list[str] = []
+        errors: list[str] = []
+        is_long_receipt = False
+        score = 100
 
-    async def detect_brightness(self, image_bytes: bytes) -> ImageQualityResult:
-        """
-        Check whether the image is too dark or overexposed.
+        img = _decode(image_bytes)
+        if img is None:
+            return ImageQualityReport(
+                passed=False,
+                warnings=[],
+                errors=["Could not decode image. Please upload a valid JPEG, PNG, or WebP file."],
+                is_long_receipt=False,
+                quality_score=0,
+            )
 
-        TODO: Implement by converting to HSV and examining the V channel mean.
-              Acceptable range: roughly 50–220 on a 0–255 scale.
+        h, w = img.shape[:2]
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        Args:
-            image_bytes: Raw image bytes.
+        # A. Blur detection ───────────────────────────────────────────────────
+        blur_result, blur_score_penalty = self._check_blur(gray)
+        if blur_result == "FAIL":
+            lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+            errors.append(
+                f"Image is too blurry (sharpness: {lap_var:.1f}). "
+                "Please retake the photo with a steady hand."
+            )
+            score -= 40
+        elif blur_result == "WARNING":
+            lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+            warnings.append(
+                f"Image is slightly blurry (sharpness: {lap_var:.1f}). "
+                "A sharper photo may improve extraction accuracy."
+            )
+            score -= 15
 
-        Returns:
-            ImageQualityResult with passed=True when brightness is acceptable.
-        """
-        # TODO: implement brightness detection
-        logger.debug("detect_brightness called — returning placeholder result")
-        return ImageQualityResult(passed=True, detail="Brightness check not yet implemented")
+        # B. Brightness ───────────────────────────────────────────────────────
+        brightness_result, mean_brightness = self._check_brightness(gray)
+        if brightness_result == "TOO_DARK_FAIL":
+            errors.append(
+                f"Image is too dark (brightness: {mean_brightness:.1f}/255). "
+                "Please take the photo in better lighting."
+            )
+            score -= 30
+        elif brightness_result == "TOO_DARK_WARN":
+            warnings.append(
+                f"Image is slightly dark (brightness: {mean_brightness:.1f}/255). "
+                "Better lighting may improve accuracy."
+            )
+            score -= 10
+        elif brightness_result == "TOO_BRIGHT_FAIL":
+            errors.append(
+                f"Image is overexposed (brightness: {mean_brightness:.1f}/255). "
+                "Please avoid direct flash or bright backgrounds."
+            )
+            score -= 30
+        elif brightness_result == "TOO_BRIGHT_WARN":
+            warnings.append(
+                f"Image is slightly bright (brightness: {mean_brightness:.1f}/255). "
+                "Reducing glare may improve accuracy."
+            )
+            score -= 10
 
-    async def detect_glare(self, image_bytes: bytes) -> ImageQualityResult:
-        """
-        Detect bright reflective glare that obscures receipt text.
+        # C. Resolution ───────────────────────────────────────────────────────
+        if w < MIN_DIMENSION_PX or h < MIN_DIMENSION_PX:
+            errors.append(
+                f"Image resolution is too low ({w}×{h} px). "
+                f"Please upload an image of at least {MIN_DIMENSION_PX}×{MIN_DIMENSION_PX} px."
+            )
+            score -= 40
 
-        TODO: Implement by thresholding very bright pixels (>240) and
-              computing the proportion of the image they occupy.
+        # D. Long receipt detection ───────────────────────────────────────────
+        if w > 0:
+            ratio = h / w
+            if ratio > LONG_RECEIPT_RATIO:
+                is_long_receipt = True
+                warnings.append(
+                    f"This receipt looks very long (aspect ratio {ratio:.1f}:1). "
+                    "Capture it in 2–3 overlapping photos for better accuracy."
+                )
 
-        Args:
-            image_bytes: Raw image bytes.
+        # TODO: Add glare detection here (bright-pixel proportion threshold).
+        # TODO: Add receipt-presence detection (white-region / edge heuristic).
+        # TODO: Add skew/perspective detection and correction hint.
 
-        Returns:
-            ImageQualityResult with passed=True when glare is below threshold.
-        """
-        # TODO: implement glare detection
-        logger.debug("detect_glare called — returning placeholder result")
-        return ImageQualityResult(passed=True, detail="Glare check not yet implemented")
-
-    async def detect_resolution(self, image_bytes: bytes) -> ImageQualityResult:
-        """
-        Verify that the image has enough pixels for reliable OCR / Vision.
-
-        TODO: Implement by decoding image dimensions and checking that both
-              width and height meet a minimum threshold (e.g. 400 × 600 px).
-
-        Args:
-            image_bytes: Raw image bytes.
-
-        Returns:
-            ImageQualityResult with passed=True when resolution is sufficient.
-        """
-        # TODO: implement resolution check
-        logger.debug("detect_resolution called — returning placeholder result")
-        return ImageQualityResult(passed=True, detail="Resolution check not yet implemented")
-
-    async def detect_receipt_presence(self, image_bytes: bytes) -> ImageQualityResult:
-        """
-        Determine whether a receipt is actually present in the image.
-
-        TODO: Implement using a lightweight classifier or heuristic (e.g.
-              checking for long vertical white regions typical of receipts,
-              or a small ML model fine-tuned for receipt detection).
-
-        Args:
-            image_bytes: Raw image bytes.
-
-        Returns:
-            ImageQualityResult with passed=True when a receipt is detected.
-        """
-        # TODO: implement receipt presence detection
-        logger.debug("detect_receipt_presence called — returning placeholder result")
-        return ImageQualityResult(passed=True, detail="Receipt presence check not yet implemented")
-
-    async def detect_long_receipt(self, image_bytes: bytes) -> ImageQualityResult:
-        """
-        Flag receipts that are unusually long and may need to be split or
-        processed in sections.
-
-        TODO: Implement by checking the image aspect ratio. An extreme
-              height-to-width ratio (e.g. > 5:1) suggests a long receipt.
-
-        Args:
-            image_bytes: Raw image bytes.
-
-        Returns:
-            ImageQualityResult with passed=True when the receipt fits in a
-            single pass, or False when multi-section processing is advised.
-        """
-        # TODO: implement long-receipt detection
-        logger.debug("detect_long_receipt called — returning placeholder result")
-        return ImageQualityResult(passed=True, detail="Long-receipt check not yet implemented")
-
-    async def run_all(self, image_bytes: bytes) -> ImageQualityReport:
-        """
-        Run every quality check and return a consolidated report.
-
-        Args:
-            image_bytes: Raw image bytes.
-
-        Returns:
-            ImageQualityReport summarising all check outcomes.
-        """
+        score = max(0, min(100, score))
         return ImageQualityReport(
-            blur=await self.detect_blur(image_bytes),
-            brightness=await self.detect_brightness(image_bytes),
-            glare=await self.detect_glare(image_bytes),
-            resolution=await self.detect_resolution(image_bytes),
-            receipt_present=await self.detect_receipt_presence(image_bytes),
-            long_receipt=await self.detect_long_receipt(image_bytes),
+            passed=len(errors) == 0,
+            warnings=warnings,
+            errors=errors,
+            is_long_receipt=is_long_receipt,
+            quality_score=score,
         )
+
+    # ── Private check helpers ────────────────────────────────────────────────
+
+    def _check_blur(self, gray: np.ndarray) -> tuple[str, float]:
+        """Return (status, laplacian_variance).  Status: PASS | WARNING | FAIL."""
+        lap_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        if lap_var < BLUR_FAIL_THRESHOLD:
+            return "FAIL", lap_var
+        if lap_var < BLUR_WARN_THRESHOLD:
+            return "WARNING", lap_var
+        return "PASS", lap_var
+
+    def _check_brightness(self, gray: np.ndarray) -> tuple[str, float]:
+        """Return (status, mean_brightness).  Status: PASS | TOO_DARK_FAIL | etc."""
+        mean = float(gray.mean())
+        if mean < BRIGHTNESS_TOO_DARK:
+            return "TOO_DARK_FAIL", mean
+        if mean < BRIGHTNESS_DARK_WARN:
+            return "TOO_DARK_WARN", mean
+        if mean > BRIGHTNESS_TOO_BRIGHT:
+            return "TOO_BRIGHT_FAIL", mean
+        if mean > BRIGHTNESS_BRIGHT_WARN:
+            return "TOO_BRIGHT_WARN", mean
+        return "PASS", mean
