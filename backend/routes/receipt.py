@@ -1,7 +1,7 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from schemas.receipt import ReceiptAnalysisResponse
-from services.receipt import ReceiptService
+from services.receipt_analysis import ReceiptAnalysisService
 
 router = APIRouter(prefix="/api/v1/receipt", tags=["Receipt"])
 
@@ -14,7 +14,7 @@ ALLOWED_IMAGE_TYPES = {
     "image/tiff",
 }
 
-_receipt_service = ReceiptService()
+_receipt_service = ReceiptAnalysisService()
 
 
 @router.post(

@@ -38,8 +38,13 @@ Rules:
 - Do not include any text outside the JSON object."""
 
 
-class ReceiptService:
-    """Handles receipt file processing and AI analysis via OpenAI Vision."""
+class ReceiptAnalysisService:
+    """
+    Responsible for OpenAI Vision extraction.
+
+    Sends a receipt image to gpt-4.1-mini and returns structured
+    financial data (merchant, date, currency, total, line items).
+    """
 
     def __init__(self):
         api_key = os.environ.get("OPENAI_API_KEY")
