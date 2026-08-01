@@ -1,0 +1,65 @@
+We are beginning the next KharchAI mobile milestone.
+
+IMPORTANT: Inspect the existing mobile project before making any changes. Preserve all currently working Expo configuration and do not modify the backend.
+
+MILESTONE:
+Build only the basic React Native navigation foundation.
+
+Required flow:
+
+Home
+  ↓
+Add Expense
+  ↓
+Camera Placeholder
+
+Requirements:
+
+1. Keep the existing Expo SDK 54 setup and working configuration.
+2. Inspect the current navigation/app structure first.
+3. Implement clean React Native navigation for:
+   - Home
+   - Add Expense
+   - Camera Placeholder
+4. Home screen should have:
+   - KharchAI app title/branding
+   - A clear "Add Expense" action/button
+5. Add Expense screen should have:
+   - Screen title
+   - A clear action to continue to the Camera Placeholder
+6. Camera Placeholder screen should have:
+   - Screen title such as "Scan Receipt"
+   - A simple placeholder explaining that camera/receipt scanning will be added in a later milestone
+   - A back action
+7. Use a simple, clean mobile-first UI.
+8. Make the screens usable on Android.
+9. Do not implement:
+   - Camera access
+   - Image picker
+   - Receipt OCR
+   - OpenAI
+   - API calls
+   - Quality detection
+   - Long receipt detection
+   - Blur detection
+   - Lighting detection
+   - Glare detection
+   - Edge detection
+   - Multiple receipt detection
+   - Receipt upload
+   - Processing
+   - Review/edit
+   - Dashboard
+10. Do not modify backend files.
+11. Avoid unnecessary dependencies. If a navigation dependency is already installed, reuse it. If navigation is not configured, install only the minimal Expo-compatible navigation dependencies required.
+12. Do not hardcode secrets or API URLs.
+13. Test the app after making the changes.
+14. Verify that the app starts successfully with Expo.
+15. Report exactly:
+   - Files changed
+   - Dependencies added, if any
+   - Navigation approach used
+   - Test result
+   - Any warnings/errors
+
+Do not proceed to the next milestone after completing this one.
