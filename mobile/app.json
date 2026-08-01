@@ -6,6 +6,14 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "platforms": ["android"],
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "KharchAI needs your camera to scan receipts."
+        }
+      ]
+    ],
     "android": {
       "package": "com.kharchai.app"
     }

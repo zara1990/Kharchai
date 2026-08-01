@@ -1,0 +1,95 @@
+We are beginning KharchAI Mobile Milestone 3: Receipt Capture Foundation.
+
+IMPORTANT:
+Inspect the existing mobile project before making changes.
+Preserve the working Expo SDK 54 setup and existing navigation.
+Do not modify backend files or backend functionality.
+
+CURRENT FLOW:
+Home
+  ↓
+Add Expense
+  ↓
+Camera Placeholder
+
+CHANGE ONLY THIS PART:
+Replace the Camera Placeholder functionality with a real Android receipt capture foundation.
+
+TARGET FLOW:
+Add Expense
+  ↓
+Camera
+  ↓
+Capture receipt
+  ↓
+Receipt Preview
+  ↓
+Retake OR Continue
+
+Requirements:
+
+1. Use the existing Expo React Native project and navigation.
+2. Use the minimal Expo-compatible camera package required for camera access.
+3. Request camera permission properly on Android.
+4. If permission is denied, show a friendly explanation and a way to try again.
+5. Build a real camera screen with:
+   - live camera preview
+   - clear capture button
+   - sensible receipt framing guidance
+   - back navigation
+6. When the user captures an image:
+   - do NOT upload it
+   - navigate to a Receipt Preview screen
+   - display the captured image clearly
+7. Receipt Preview must have:
+   - image preview
+   - "Retake" action
+   - "Continue" action
+8. Retake must return to the camera without losing navigation state.
+9. Continue should proceed only to a temporary/local next step or placeholder for the future quality-check stage.
+   Do NOT call the backend.
+10. Structure the captured receipt data so the app can support multiple images for ONE receipt in a future milestone.
+    For example, use a receipt capture state containing an array/list of captured image URIs rather than designing the architecture around exactly one image.
+11. Do NOT implement multi-photo capture UI yet unless it is necessary for the architecture.
+12. Do NOT implement:
+    - OpenAI
+    - OCR
+    - FastAPI calls
+    - Supabase
+    - image upload
+    - blur detection
+    - lighting detection
+    - glare detection
+    - edge detection
+    - multiple-receipt detection
+    - long-receipt detection
+    - AI processing
+    - review/edit
+    - dashboard
+13. Do not hardcode secrets or backend URLs.
+14. Avoid unnecessary dependencies.
+15. Keep the UI clean and Android-friendly.
+16. Preserve the existing Home and Add Expense screens.
+17. Do not modify backend files.
+
+Testing requirements:
+
+- Run the Expo app after changes.
+- Verify Android camera permission behavior.
+- Verify camera opens.
+- Verify capture works.
+- Verify captured image appears in Preview.
+- Verify Retake returns to Camera.
+- Verify Continue works without making a network/API request.
+- Verify Home → Add Expense → Camera still works.
+- Check for TypeScript/runtime errors.
+
+Before finishing, report:
+- Files changed
+- Dependencies added
+- How camera permission is handled
+- How captured image state is structured
+- Test results
+- Any warnings/errors
+
+Do NOT proceed to the next milestone.

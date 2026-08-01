@@ -3,11 +3,20 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 import CameraScreen from '../screens/CameraScreen';
+import ReceiptPreviewScreen from '../screens/ReceiptPreviewScreen';
+import ProcessingPlaceholderScreen from '../screens/ProcessingPlaceholderScreen';
 
 export type RootStackParamList = {
   Home: undefined;
   AddExpense: undefined;
   Camera: undefined;
+  ReceiptPreview: {
+    /** Array of local image URIs — structured for multi-photo support in a future milestone */
+    capturedImages: string[];
+  };
+  ProcessingPlaceholder: {
+    capturedImages: string[];
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -33,10 +42,21 @@ export default function AppNavigator() {
         component={AddExpenseScreen}
         options={{ title: 'Add Expense' }}
       />
+      {/* Full-screen camera — no header, custom top bar */}
       <Stack.Screen
         name="Camera"
         component={CameraScreen}
-        options={{ title: 'Scan Receipt' }}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ReceiptPreview"
+        component={ReceiptPreviewScreen}
+        options={{ title: 'Receipt Preview', headerStyle: { backgroundColor: '#1A1A2E' } }}
+      />
+      <Stack.Screen
+        name="ProcessingPlaceholder"
+        component={ProcessingPlaceholderScreen}
+        options={{ title: 'Review' }}
       />
     </Stack.Navigator>
   );
