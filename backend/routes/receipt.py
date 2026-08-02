@@ -5,6 +5,7 @@ from services.document_classifier import DocumentClassifierService
 from services.image_quality import ImageQualityService
 from services.normalization import NormalizationService
 from services.receipt_analysis import ReceiptAnalysisService
+from services.ufr_mapper import UniversalFinancialRecordMapper
 from services.validation import ReceiptValidationService
 
 router = APIRouter(prefix="/api/v1/receipt", tags=["Receipt"])
@@ -22,6 +23,7 @@ _quality_service     = ImageQualityService()
 _classifier_service  = DocumentClassifierService()
 _receipt_service     = ReceiptAnalysisService()
 _normalization_service = NormalizationService()
+_ufr_mapper          = UniversalFinancialRecordMapper()
 _validation_service  = ReceiptValidationService()
 
 
@@ -99,11 +101,28 @@ async def upload_receipt(file: UploadFile = File(...)):
     # Pass-through for receipts; future document types will remap fields here.
     receipt = _normalization_service.normalize(receipt, classification.document_type)
 
-    # ── 7. Receipt validation (runs even when OpenAI returned an error status,
+    # ── 7. Universal Financial Record mapping ──────────────────────────────────
+    # The UFR is the canonical internal representation. The legacy receipt
+    # response remains separate so the current API contract is unchanged.
+    # Future parsers (utility bill, wallet, bank statement) should map their
+    # parser-specific output into UniversalFinancialRecord at this boundary.
+    ufr = _ufr_mapper.from_receipt_analysis(
+        receipt,
+        document_type=classification.document_type,
+        confidence=classification.confidence,
+        quality_score=quality.quality_score,
+    )
+
+    # ── 8. Receipt validation (runs even when OpenAI returned an error status,
     #        so the caller always gets a validation block in the response) ──────
     validation = _validation_service.validate_receipt(receipt)
 
-    # ── 8. Return combined response ───────────────────────────────────────────
+    # Keep the local variable explicit until downstream UFR consumers are added.
+    # The object is intentionally not added to this response to avoid an API
+    # contract change for existing clients.
+    _ = ufr
+
+    # ── 9. Return combined response ───────────────────────────────────────────
     return ReceiptUploadResponse(
         status=receipt.status,   # "analysed" | "error"
         quality=quality,

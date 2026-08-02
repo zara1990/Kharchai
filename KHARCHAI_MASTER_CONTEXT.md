@@ -1,0 +1,50 @@
+# KharchAI Master Context
+
+## Project
+
+KharchAI is an AI-powered financial copilot for Pakistan. The backend is a
+Python 3.11 FastAPI service in `backend/`; the Android Expo application is
+planned for a later milestone.
+
+## Current backend pipeline
+
+```text
+Upload
+  → Image Quality
+  → Document Classifier
+  → Receipt Analysis
+  → Receipt Normalization
+  → Universal Financial Record Mapper
+  → Receipt Validation
+  → Existing ReceiptUploadResponse
+```
+
+Receipt extraction and the public receipt response remain unchanged.
+
+## Universal Financial Record foundation
+
+`UniversalFinancialRecord` is the canonical internal representation for
+financial documents. The current receipt adapter maps
+`ReceiptAnalysisResponse` into a UFR after normalization. The UFR is internal
+for now and is not added to the existing upload response, preventing a breaking
+API change.
+
+The UFR supports:
+
+- receipts
+- utility bills
+- future wallet screenshots
+- future bank statements
+
+Future document-specific parsers should produce their own extraction output and
+map it into the same UFR schema before persistence, calculations, or financial
+reasoning.
+
+## Workflow conventions
+
+- Inspect the repository before every milestone change.
+- Implement one explicit milestone at a time.
+- Preserve working behavior and existing API contracts unless a milestone
+  explicitly changes them.
+- Do not add Supabase, authentication, mobile, dashboards, or other future
+  scope without an explicit milestone.
