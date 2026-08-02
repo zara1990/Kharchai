@@ -7,10 +7,18 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Dimensions,
+  Modal,
+  Image,
+  ScrollView,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import {
+  checkImageQuality,
+  qualityWarningMessage,
+  QualityIssue,
+} from '../utils/imageQuality';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Camera'>;
@@ -21,10 +29,21 @@ const FRAME_W = SW * 0.8;
 const FRAME_H = FRAME_W * 1.42; // portrait receipt aspect ratio
 const SIDE_MARGIN = (SW - FRAME_W) / 2;
 
+/** Captured photo held in state until the user dismisses the quality warning. */
+interface PendingCapture {
+  uri: string;
+  width: number;
+  height: number;
+}
+
 export default function CameraScreen({ navigation }: Props) {
   const cameraRef = useRef<CameraView>(null);
   const [capturing, setCapturing] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+
+  // ── Quality-check state ──────────────────────────────────────────────────
+  const [pendingCapture, setPendingCapture] = useState<PendingCapture | null>(null);
+  const [qualityIssues, setQualityIssues] = useState<QualityIssue[]>([]);
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (!permission) {
@@ -80,22 +99,73 @@ export default function CameraScreen({ navigation }: Props) {
     );
   }
 
+  // ── Dismiss quality warning — let user retake ────────────────────────────
+  const handleRetakeFromWarning = () => {
+    setPendingCapture(null);
+    setQualityIssues([]);
+    // Camera is still mounted; user can capture again immediately.
+  };
+
+  // ── Dismiss quality warning — proceed anyway ─────────────────────────────
+  const handleContinueAnyway = () => {
+    if (!pendingCapture) return;
+    const { uri } = pendingCapture;
+    setPendingCapture(null);
+    setQualityIssues([]);
+    navigation.navigate('ReceiptPreview', { capturedImages: [uri] });
+  };
+
   // ── Capture ──────────────────────────────────────────────────────────────
   const handleCapture = async () => {
     if (!cameraRef.current || capturing) return;
     try {
       setCapturing(true);
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
-      if (photo?.uri) {
-        // Pass as array — architecture supports adding more images in a future milestone
-        navigation.navigate('ReceiptPreview', { capturedImages: [photo.uri] });
+
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.85,
+        base64: true,   // needed for blur heuristic
+        exif: true,     // needed for lighting check
+      });
+
+      if (!photo?.uri) return;
+
+      // Run quality checks synchronously — O(1), no blocking I/O.
+      if (photo.base64) {
+        const issues = checkImageQuality({
+          base64: photo.base64,
+          width: photo.width,
+          height: photo.height,
+          exif: photo.exif as Record<string, unknown> | undefined,
+        });
+
+        if (issues.length > 0) {
+          // Store the capture and surface the warning modal.
+          setPendingCapture({ uri: photo.uri, width: photo.width, height: photo.height });
+          setQualityIssues(issues);
+          return; // Don't navigate yet — let user decide.
+        }
       }
+
+      // No quality issues (or base64 unavailable) → proceed directly.
+      navigation.navigate('ReceiptPreview', { capturedImages: [photo.uri] });
     } catch (err) {
       console.error('[Camera] takePictureAsync failed:', err);
     } finally {
       setCapturing(false);
     }
   };
+
+  // ── Warning modal content ─────────────────────────────────────────────────
+  const warningVisible = qualityIssues.length > 0 && pendingCapture !== null;
+  const hasBlur = qualityIssues.includes('blur');
+  const hasDark = qualityIssues.includes('dark');
+  const warningMessage = qualityWarningMessage(qualityIssues);
+  const warningTitle =
+    hasBlur && hasDark
+      ? 'Photo Quality Issues'
+      : hasBlur
+      ? 'Blurry Photo'
+      : 'Poor Lighting';
 
   // ── Camera UI ────────────────────────────────────────────────────────────
   return (
@@ -158,6 +228,58 @@ export default function CameraScreen({ navigation }: Props) {
           )}
         </TouchableOpacity>
       </SafeAreaView>
+
+      {/* ── Quality warning modal ─────────────────────────────────────────── */}
+      <Modal
+        visible={warningVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            {/* Captured image thumbnail */}
+            {pendingCapture && (
+              <Image
+                source={{ uri: pendingCapture.uri }}
+                style={styles.modalThumb}
+                resizeMode="cover"
+              />
+            )}
+
+            {/* Warning icon row */}
+            <View style={styles.warningIconRow}>
+              {hasBlur && <Text style={styles.warningIcon}>🌫️</Text>}
+              {hasDark && <Text style={styles.warningIcon}>🌑</Text>}
+            </View>
+
+            {/* Title */}
+            <Text style={styles.modalTitle}>{warningTitle}</Text>
+
+            {/* Message */}
+            <ScrollView style={styles.modalMsgScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalMessage}>{warningMessage}</Text>
+            </ScrollView>
+
+            {/* Action buttons */}
+            <TouchableOpacity
+              style={styles.modalRetakeBtn}
+              onPress={handleRetakeFromWarning}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalRetakeBtnText}>↩  Retake</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalContinueBtn}
+              onPress={handleContinueAnyway}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalContinueBtnText}>Continue anyway</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -283,5 +405,79 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 27,
     backgroundColor: '#1B5E3B',
+  },
+
+  // ── Quality warning modal ─────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    paddingBottom: 24,
+    overflow: 'hidden',
+    elevation: 8,
+  },
+  modalThumb: {
+    width: '100%',
+    height: SH * 0.28,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  warningIconRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 18,
+    marginBottom: 4,
+  },
+  warningIcon: { fontSize: 28 },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A2E',
+    marginTop: 8,
+    marginBottom: 8,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  modalMsgScroll: {
+    maxHeight: 90,
+    width: '100%',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 21,
+    textAlign: 'center',
+  },
+  modalRetakeBtn: {
+    backgroundColor: '#1B5E3B',
+    paddingVertical: 15,
+    borderRadius: 12,
+    width: '85%',
+    alignItems: 'center',
+    marginBottom: 10,
+    elevation: 2,
+  },
+  modalRetakeBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  modalContinueBtn: {
+    paddingVertical: 12,
+    width: '85%',
+    alignItems: 'center',
+  },
+  modalContinueBtnText: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });
