@@ -10,16 +10,20 @@ planned for a later milestone.
 
 ```text
 Upload
-  → Image Quality
-  → Document Classifier
-  → Receipt Analysis
-  → Receipt Normalization
-  → Universal Financial Record Mapper
-  → Receipt Validation
+  → FinancialPipeline
+      → Image Quality Stage
+      → Classifier Stage
+      → Parser Stage
+      → Validation Stage
+      → UFR Stage
   → Existing ReceiptUploadResponse
 ```
 
 Receipt extraction and the public receipt response remain unchanged.
+
+The route is intentionally limited to request handling: MIME validation, byte
+reading, context creation, and returning the pipeline result. Business logic
+lives in the reusable pipeline stages.
 
 ## Universal Financial Record foundation
 
