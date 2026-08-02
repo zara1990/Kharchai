@@ -15,7 +15,8 @@ import logging
 
 import cv2
 import numpy as np
-from pydantic import BaseModel
+
+from schemas.receipt import ImageQualityReport
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +29,6 @@ BRIGHTNESS_TOO_BRIGHT = 220       # above this → overexposed (FAIL)
 BRIGHTNESS_BRIGHT_WARN = 200      # above this (but below TOO_BRIGHT) → WARNING
 MIN_DIMENSION_PX = 1000           # minimum width AND height in pixels
 LONG_RECEIPT_RATIO = 3.5          # height / width ratio above this → long receipt
-
-
-class ImageQualityReport(BaseModel):
-    """Serialisable result returned to the API consumer."""
-    passed: bool
-    warnings: list[str]
-    errors: list[str]
-    is_long_receipt: bool
-    quality_score: int             # 0–100
 
 
 def _decode(image_bytes: bytes):
