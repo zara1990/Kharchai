@@ -1,1 +1,2 @@
 - [KharchAI project conventions](kharchai-conventions.md) — milestone-by-milestone build; inspect repo before changes; no speculative features.
+- [Universal Financial Record](universal-financial-record.md) — all document parsers should map into the internal UFR while preserving legacy receipt API responses.
