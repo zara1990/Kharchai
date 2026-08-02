@@ -1,7 +1,9 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from schemas.receipt import ReceiptUploadResponse
+from services.document_classifier import DocumentClassifierService
 from services.image_quality import ImageQualityService
+from services.normalization import NormalizationService
 from services.receipt_analysis import ReceiptAnalysisService
 from services.validation import ReceiptValidationService
 
@@ -16,20 +18,27 @@ ALLOWED_IMAGE_TYPES = {
     "image/tiff",
 }
 
-_quality_service    = ImageQualityService()
-_receipt_service    = ReceiptAnalysisService()
-_validation_service = ReceiptValidationService()
+_quality_service     = ImageQualityService()
+_classifier_service  = DocumentClassifierService()
+_receipt_service     = ReceiptAnalysisService()
+_normalization_service = NormalizationService()
+_validation_service  = ReceiptValidationService()
 
 
 @router.post(
     "/upload",
     response_model=ReceiptUploadResponse,
-    summary="Upload a receipt image for AI analysis",
+    summary="Upload a financial document image for AI analysis",
     description=(
-        "Accepts a receipt image (JPEG, PNG, GIF, WebP, BMP, TIFF). "
+        "Accepts a financial document image (JPEG, PNG, GIF, WebP, BMP, TIFF). "
         "Pipeline: content-type check → image quality validation → "
-        "OpenAI Vision extraction → receipt validation → JSON response. "
+        "document classification → OpenAI Vision extraction → "
+        "schema normalisation → receipt validation → JSON response.\n\n"
+        "Returns HTTP 415 for unsupported MIME types. "
         "Returns HTTP 400 if image quality fails. "
+        "Returns HTTP 400 with `status='unsupported_document'` if the image is "
+        "not a receipt (invoice, bank statement, wallet screenshot, and utility "
+        "bill support is planned). "
         "On success, returns quality report, validation report, and extracted receipt data."
     ),
 )
@@ -60,16 +69,41 @@ async def upload_receipt(file: UploadFile = File(...)):
             },
         )
 
-    # ── 4. OpenAI Vision extraction ───────────────────────────────────────────
+    # ── 4. Document classification ────────────────────────────────────────────
+    # Determines the document type so the pipeline can route to the correct
+    # extractor.  Currently only "receipt" is fully supported; all other types
+    # return HTTP 400 with an informative message.
+    #
+    # Future plug-in point: when a new extractor is ready (e.g. invoice),
+    # add a branch here to call it instead of raising HTTP 400.
+    classification = _classifier_service.classify_document(image_bytes)
+
+    if classification.document_type != "receipt":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "status": "unsupported_document",
+                "document_type": classification.document_type,
+                "message": "This document type is planned but not yet supported.",
+            },
+        )
+
+    # ── 5. OpenAI Vision extraction ───────────────────────────────────────────
+    # Future plug-in point: swap ReceiptAnalysisService for a document-type-
+    # specific extractor (e.g. InvoiceAnalysisService) based on classification.
     receipt = await _receipt_service.process_bytes(
         image_bytes, file.filename, file.content_type
     )
 
-    # ── 5. Receipt validation (runs even when OpenAI returned an error status,
+    # ── 6. Schema normalisation ───────────────────────────────────────────────
+    # Pass-through for receipts; future document types will remap fields here.
+    receipt = _normalization_service.normalize(receipt, classification.document_type)
+
+    # ── 7. Receipt validation (runs even when OpenAI returned an error status,
     #        so the caller always gets a validation block in the response) ──────
     validation = _validation_service.validate_receipt(receipt)
 
-    # ── 6. Return combined response ───────────────────────────────────────────
+    # ── 8. Return combined response ───────────────────────────────────────────
     return ReceiptUploadResponse(
         status=receipt.status,   # "analysed" | "error"
         quality=quality,

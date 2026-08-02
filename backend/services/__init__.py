@@ -2,17 +2,23 @@
 KharchAI services package.
 
 Exports:
-    ReceiptAnalysisService     — OpenAI Vision extraction
     ImageQualityService        — image quality checks (OpenCV)
+    DocumentClassifierService  — lightweight financial document classifier
+    ReceiptAnalysisService     — OpenAI Vision extraction
+    NormalizationService       — canonical schema normalizer (pass-through for receipts)
     ReceiptValidationService   — extracted-data validation
 """
 
+from services.document_classifier import DocumentClassifierService
 from services.image_quality import ImageQualityService
+from services.normalization import NormalizationService
 from services.receipt_analysis import ReceiptAnalysisService
 from services.validation import ReceiptValidationService
 
 __all__ = [
-    "ReceiptAnalysisService",
     "ImageQualityService",
+    "DocumentClassifierService",
+    "ReceiptAnalysisService",
+    "NormalizationService",
     "ReceiptValidationService",
 ]
