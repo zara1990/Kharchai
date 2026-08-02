@@ -1,0 +1,215 @@
+Milestone 9 — Build Financial Document Processing Pipeline
+
+IMPORTANT
+
+Inspect the existing backend before making changes.
+
+Preserve all current functionality.
+
+Do NOT rewrite working logic.
+
+Do NOT change the public API response.
+
+Do NOT change Swagger.
+
+Do NOT change OpenAI prompts.
+
+Do NOT change UFR schema.
+
+Only refactor architecture.
+
+---------------------------------
+
+Goal
+
+Create a reusable Financial Document Pipeline that orchestrates document processing.
+
+Current endpoint logic should be moved into pipeline stages while keeping exactly the same API behaviour.
+
+---------------------------------
+
+Create:
+
+backend/services/pipeline/
+
+    __init__.py
+
+    financial_pipeline.py
+
+    pipeline_context.py
+
+    pipeline_result.py
+
+    stages/
+
+        quality_stage.py
+
+        classifier_stage.py
+
+        parser_stage.py
+
+        validation_stage.py
+
+        ufr_stage.py
+
+---------------------------------
+
+PipelineContext
+
+Create a context object that carries processing state through the pipeline.
+
+It should contain fields similar to:
+
+- uploaded image
+- filename
+- image quality report
+- detected document type
+- parser output
+- validation result
+- Universal Financial Record
+- warnings
+- final response
+
+Avoid passing many independent variables between stages.
+
+---------------------------------
+
+PipelineResult
+
+Create a reusable result object for pipeline stages.
+
+Include:
+
+- success
+- stage_name
+- warnings
+- errors
+- payload/data
+
+---------------------------------
+
+Pipeline Stages
+
+Quality Stage
+
+- Use existing image quality service.
+- Do not duplicate logic.
+
+Classifier Stage
+
+- Use existing document classifier.
+- Preserve current behaviour.
+
+Parser Stage
+
+- Dispatch parser based on document type.
+- For now support:
+    - receipt
+    - utility_bill (placeholder)
+- Receipt parser should call existing receipt analysis service.
+- Utility bill parser can return a placeholder until implemented.
+
+Validation Stage
+
+- Reuse existing validation logic.
+
+UFR Stage
+
+- Reuse existing UFR mapper.
+
+---------------------------------
+
+Financial Pipeline
+
+Implement a pipeline orchestrator that executes stages in order:
+
+Quality
+
+↓
+
+Classifier
+
+↓
+
+Parser
+
+↓
+
+Validation
+
+↓
+
+UFR
+
+Return the same final response currently returned by the upload endpoint.
+
+---------------------------------
+
+Receipt Endpoint
+
+Refactor upload endpoint so it simply:
+
+1. Creates PipelineContext
+2. Calls FinancialPipeline
+3. Returns pipeline result
+
+No business logic should remain inside the route except request handling.
+
+---------------------------------
+
+Requirements
+
+No API contract changes.
+
+No response schema changes.
+
+No OpenAI prompt changes.
+
+No database work.
+
+No Supabase.
+
+No UI changes.
+
+No breaking changes.
+
+---------------------------------
+
+Testing
+
+Verify:
+
+✓ Existing receipt upload still returns HTTP 200
+
+✓ Swagger unchanged
+
+✓ UFR still generated
+
+✓ Quality validation still works
+
+✓ Long receipt warning still works
+
+✓ Blur detection still works
+
+✓ Existing unit tests (if any) pass
+
+---------------------------------
+
+Documentation
+
+Update:
+
+- KHARCHAI_MASTER_CONTEXT.md
+- progress-log.md
+
+Create ADR:
+
+docs/adr/0002-financial-processing-pipeline.md
+
+Describe why pipeline architecture was adopted.
+
+Report:
+
+- Files changed
+- Architecture summary
+- Verification results
