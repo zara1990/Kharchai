@@ -1,0 +1,88 @@
+Milestone 7A.1 — Introduce Generic Financial Document Pipeline
+
+IMPORTANT:
+- Inspect the existing project first.
+- Preserve all working functionality.
+- Do not change the OpenAI extraction prompt.
+- Do not modify image quality validation.
+- Do not change receipt validation behavior.
+- Keep the current API responses working.
+
+Objective:
+Refactor the backend into a reusable financial document processing pipeline while preserving current receipt functionality.
+
+Tasks:
+
+1. Create a new service:
+   services/document_classifier.py
+
+2. Implement a DocumentClassifierService with a method:
+   classify_document(image_bytes)
+
+3. For this MVP, implement lightweight document classification using simple heuristics and placeholders. Supported document types:
+
+   - receipt
+   - invoice
+   - bank_statement
+   - wallet_screenshot
+   - utility_bill
+   - unknown
+
+4. Update the receipt upload flow:
+
+   Upload
+   ↓
+   Image Quality
+   ↓
+   Document Classifier
+   ↓
+   Receipt Analysis
+   ↓
+   Validation
+
+5. If the classifier detects:
+   receipt
+      → continue normally
+
+   anything else
+      → return HTTP 400 with:
+
+   {
+     "status": "unsupported_document",
+     "document_type": "...",
+     "message": "This document type is planned but not yet supported."
+   }
+
+6. Create a new module:
+   services/normalization.py
+
+7. Implement a placeholder NormalizationService that receives receipt analysis output and returns the same structure unchanged.
+   (Future document types will normalize into this same schema.)
+
+8. Ensure the upload route now calls:
+
+   ImageQualityService
+      ↓
+   DocumentClassifierService
+      ↓
+   ReceiptAnalysisService
+      ↓
+   NormalizationService
+      ↓
+   ValidationService
+
+9. Update Swagger documentation.
+
+10. Add clear comments indicating where future document-specific extractors will plug into the pipeline.
+
+11. Do not implement Supabase yet.
+
+12. Test:
+    - Receipt still succeeds.
+    - Unsupported document returns HTTP 400.
+    - Existing JSON schema remains unchanged.
+
+13. Report:
+    - Files changed
+    - Architecture changes
+    - How to test the new pipeline
