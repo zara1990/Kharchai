@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Optional, Protocol
 
 from schemas.receipt import ReceiptAnalysisResponse
+from parsers.wallet_parser import WalletParser
 from services.normalization import NormalizationService
 from services.receipt_analysis import ReceiptAnalysisService
 from services.utility_bill_analysis import (
@@ -59,11 +60,13 @@ class ParserRegistry:
         *,
         receipt_parser: ReceiptAnalysisService | None = None,
         utility_bill_parser: UtilityBillAnalysisService | None = None,
+        wallet_parser: WalletParser | None = None,
         normalization_service: NormalizationService | None = None,
     ):
         normalization_service = normalization_service or NormalizationService()
         receipt_parser = receipt_parser or ReceiptAnalysisService()
         utility_bill_parser = utility_bill_parser or UtilityBillAnalysisService()
+        wallet_parser = wallet_parser or WalletParser()
 
         self._registrations: dict[str, ParserRegistration] = {}
         self.register(
@@ -77,6 +80,11 @@ class ParserRegistry:
             utility_bill_parser,
             normalize=lambda output: output,
             to_legacy_response=utility_bill_parser.to_legacy_receipt_response,
+        )
+        self.register(
+            "wallet_screenshot",
+            wallet_parser,
+            to_legacy_response=wallet_parser.to_legacy_receipt_response,
         )
 
     def register(

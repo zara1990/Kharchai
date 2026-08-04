@@ -17,6 +17,7 @@ Upload
           → Parser Registry
               → ReceiptAnalysisService
               → UtilityBillAnalysisService
+              → WalletParser
       → Validation Stage
       → UFR Stage
   → Existing ReceiptUploadResponse
@@ -31,6 +32,11 @@ lives in the reusable pipeline stages.
 The parser stage now dispatches `document_type="utility_bill"` to
 `UtilityBillAnalysisService`. Its structured utility output is validated,
 projected into the unchanged legacy response shape, and mapped into the UFR.
+
+The parser stage also dispatches `document_type="wallet_screenshot"` to
+`WalletParser` for EasyPaisa/JazzCash transaction screenshots. Wallet output is
+validated, projected into the unchanged legacy response shape, and mapped into
+the UFR with wallet-specific fields retained in item metadata.
 
 Parser selection is centralized in `ParserRegistry`. New document parsers are
 registered there rather than adding document-type branches to the pipeline.
@@ -47,7 +53,7 @@ The UFR supports:
 
 - receipts
 - Pakistani utility bills (electricity and gas MVP)
-- future wallet screenshots
+- EasyPaisa/JazzCash wallet screenshots (MVP)
 - future bank statements
 
 Future document-specific parsers should produce their own extraction output and

@@ -12,8 +12,8 @@ Supported document types
     receipt           — point-of-sale receipt (supported by the full pipeline)
     invoice           — formal business invoice (planned, not yet supported)
     bank_statement    — printed/PDF bank statement page (planned)
-    wallet_screenshot — mobile wallet / EasyPaisa / JazzCash screenshot (planned)
-    utility_bill      — LESCO / SNGPL / WAPDA utility bill (planned)
+    wallet_screenshot — mobile wallet / EasyPaisa / JazzCash screenshot
+    utility_bill      — LESCO / SNGPL / WAPDA utility bill
     unknown           — cannot be classified with confidence
 """
 
@@ -86,7 +86,7 @@ class DocumentClassifierService:
         # Walk through detectors in priority order.
         # Each detector returns a result or None if it cannot make a confident call.
 
-        # ── Future plug-in point: wallet_screenshot detector ──────────────────
+        # ── Wallet screenshot detector ─────────────────────────────────────────
         result = self._detect_wallet_screenshot(img, aspect_ratio, file_size_kb)
         if result:
             return result
@@ -132,25 +132,28 @@ class DocumentClassifierService:
           - High colour saturation (UI gradients / brand colours)
           - Moderate file size (50 – 500 KB)
 
-        TODO: Add OCR keyword matching for "EasyPaisa", "JazzCash", "Transfer",
-              "Transaction ID", bank logos, etc.
-        TODO: Check for typical app chrome (status bar strip at top).
+        The MVP uses screenshot geometry, saturation, and edge density. OCR can
+        strengthen this later without changing the classifier result contract.
         """
-        if not (1.7 <= aspect_ratio <= 2.3):
+        if not (1.65 <= aspect_ratio <= 2.5):
             return None
 
         # Measure colour saturation in HSV space.
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         mean_saturation = float(np.mean(hsv[:, :, 1]))
 
-        if mean_saturation > 60 and 50 <= file_size_kb <= 500:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(gray, 50, 150)
+        edge_ratio = float(np.count_nonzero(edges)) / float(img.shape[0] * img.shape[1])
+
+        if mean_saturation > 45 and edge_ratio >= 0.003:
             return DocumentClassificationResult(
                 document_type="wallet_screenshot",
-                confidence="low",
+                confidence="medium",
                 notes=(
                     f"Smartphone aspect ratio ({aspect_ratio:.2f}) and high "
-                    f"colour saturation ({mean_saturation:.1f}) suggest a "
-                    "wallet/app screenshot. Low confidence — needs OCR to confirm."
+                    f"colour saturation ({mean_saturation:.1f}) with UI edge "
+                    f"density ({edge_ratio:.4f}) suggest a wallet/app screenshot."
                 ),
             )
         return None

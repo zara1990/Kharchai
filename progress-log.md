@@ -43,3 +43,19 @@
   response behavior.
 - Added controlled unsupported-document handling for registry lookup misses.
 - Added ADR-0003 documenting parser registry architecture.
+
+## Wallet Screenshot Parser MVP
+
+- Added a typed `WalletAnalysisResponse` schema for EasyPaisa/JazzCash
+  transaction screenshots.
+- Added `WalletParser` with the existing OpenAI Vision integration and a
+  file-backed structured JSON prompt.
+- Added null-safe extraction for wallet name, transaction type, amount,
+  currency, counterparty, date, time, and transaction reference.
+- Registered wallet screenshots in `ParserRegistry`.
+- Added wallet screenshot classifier routing and wallet-specific validation.
+- Mapped wallet transactions into the existing UFR, retaining wallet-specific
+  fields in item metadata.
+- Preserved the existing receipt-shaped upload response and receipt/utility
+  parser implementations.
+- Added ADR-0005 documenting the wallet parser architecture.

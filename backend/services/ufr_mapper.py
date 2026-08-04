@@ -14,6 +14,8 @@ from schemas.ufr import (
     UniversalFinancialRecordItem,
     UniversalFinancialRecordMetadata,
 )
+from schemas.wallet import WalletAnalysisResponse
+from parsers.wallet_parser import WALLET_PARSER_VERSION
 from services.utility_bill_analysis import (
     UTILITY_BILL_PARSER_VERSION,
     UtilityBillAnalysisResponse,
@@ -126,5 +128,54 @@ class UniversalFinancialRecordMapper:
                 confidence=confidence_value,
                 quality_score=quality_score,
                 parser_version=UTILITY_BILL_PARSER_VERSION,
+            ),
+        )
+
+    def from_wallet_analysis(
+        self,
+        analysis: WalletAnalysisResponse,
+        *,
+        confidence: str | float | None = None,
+        quality_score: int | None = None,
+    ) -> UniversalFinancialRecord:
+        """Map wallet-specific extraction into the unchanged generic UFR."""
+        if isinstance(confidence, str):
+            confidence_value = CONFIDENCE_SCORES.get(confidence.lower())
+        else:
+            confidence_value = confidence
+
+        wallet_metadata = {
+            "wallet_name": analysis.wallet_name,
+            "transaction_type": analysis.transaction_type,
+            "counterparty": analysis.counterparty,
+            "transaction_time": analysis.transaction_time,
+            "transaction_reference": analysis.transaction_reference,
+        }
+        items = []
+        if analysis.amount is not None or analysis.transaction_type:
+            items.append(
+                UniversalFinancialRecordItem(
+                    description=analysis.transaction_type or "Wallet transaction",
+                    amount=analysis.amount,
+                    category="wallet",
+                    metadata=wallet_metadata,
+                )
+            )
+
+        return UniversalFinancialRecord(
+            record_id=str(uuid4()),
+            document_type="wallet_screenshot",
+            merchant=analysis.wallet_name,
+            document_date=analysis.transaction_date,
+            currency=analysis.currency,
+            total_amount=analysis.amount,
+            payment_method=None,
+            category="wallet",
+            items=items,
+            metadata=UniversalFinancialRecordMetadata(
+                source="wallet_analysis",
+                confidence=confidence_value,
+                quality_score=quality_score,
+                parser_version=WALLET_PARSER_VERSION,
             ),
         )

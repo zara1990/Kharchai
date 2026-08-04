@@ -8,6 +8,7 @@ Exports:
     NormalizationService       — canonical schema normalizer (pass-through for receipts)
     UniversalFinancialRecordMapper — parser output to canonical UFR mapping
     UtilityBillAnalysisService — Pakistani utility-bill Vision extraction
+    WalletParser              — EasyPaisa/JazzCash wallet Vision extraction
     ParserRegistry           — centralized document parser selection
     ReceiptValidationService   — extracted-data validation
 """
@@ -19,6 +20,7 @@ from services.receipt_analysis import ReceiptAnalysisService
 from services.ufr_mapper import UniversalFinancialRecordMapper
 from services.utility_bill_analysis import UtilityBillAnalysisService
 from services.parsers.parser_registry import ParserRegistry
+from parsers.wallet_parser import WalletParser
 from services.validation import ReceiptValidationService
 
 __all__ = [
@@ -29,5 +31,6 @@ __all__ = [
     "UniversalFinancialRecordMapper",
     "UtilityBillAnalysisService",
     "ParserRegistry",
+    "WalletParser",
     "ReceiptValidationService",
 ]

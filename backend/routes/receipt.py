@@ -29,8 +29,9 @@ _financial_pipeline = FinancialPipeline()
         "Returns HTTP 415 for unsupported MIME types. "
         "Returns HTTP 400 if image quality fails. "
         "Returns HTTP 400 with `status='unsupported_document'` if the image is "
-        "not a receipt (invoice, bank statement, wallet screenshot, and utility "
-        "bill support is planned). "
+        "not a supported document type. Wallet screenshots and utility bills "
+        "are supported in the current MVP; invoices and bank statements are "
+        "planned. "
         "On success, returns quality report, validation report, and extracted receipt data."
     ),
 )

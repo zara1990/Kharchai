@@ -16,6 +16,7 @@ from services.receipt_analysis import ReceiptAnalysisService
 from services.ufr_mapper import UniversalFinancialRecordMapper
 from services.validation import ReceiptValidationService
 from services.utility_bill_analysis import UtilityBillAnalysisService
+from parsers.wallet_parser import WalletParser
 
 
 class FinancialPipeline:
@@ -31,6 +32,7 @@ class FinancialPipeline:
         validation_service: ReceiptValidationService | None = None,
         ufr_mapper: UniversalFinancialRecordMapper | None = None,
         utility_bill_service: UtilityBillAnalysisService | None = None,
+        wallet_parser: WalletParser | None = None,
         parser_registry: ParserRegistry | None = None,
     ):
         quality_service = quality_service or ImageQualityService()
@@ -40,9 +42,11 @@ class FinancialPipeline:
         validation_service = validation_service or ReceiptValidationService()
         ufr_mapper = ufr_mapper or UniversalFinancialRecordMapper()
         utility_bill_service = utility_bill_service or UtilityBillAnalysisService()
+        wallet_parser = wallet_parser or WalletParser()
         parser_registry = parser_registry or ParserRegistry(
             receipt_parser=receipt_service,
             utility_bill_parser=utility_bill_service,
+            wallet_parser=wallet_parser,
             normalization_service=normalization_service,
         )
 
@@ -52,6 +56,7 @@ class FinancialPipeline:
         self.validation_stage = ValidationStage(
             validation_service,
             utility_bill_service,
+            wallet_parser,
         )
         self.ufr_stage = UFRStage(ufr_mapper)
 
