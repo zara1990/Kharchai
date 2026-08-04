@@ -3,6 +3,7 @@
 from services.pipeline.pipeline_context import PipelineContext
 from services.pipeline.pipeline_result import PipelineResult
 from services.ufr_mapper import UniversalFinancialRecordMapper
+from services.utility_bill_analysis import UtilityBillAnalysisResponse
 
 
 class UFRStage:
@@ -22,15 +23,25 @@ class UFRStage:
             )
 
         classification = context.classification
-        record = self.mapper.from_receipt_analysis(
-            context.parser_output,
-            document_type=context.document_type or "unknown",
-            confidence=classification.confidence if classification else None,
-            quality_score=(
-                context.quality_report.quality_score
-                if context.quality_report
-                else None
-            ),
+        confidence = classification.confidence if classification else None
+        quality_score = (
+            context.quality_report.quality_score if context.quality_report else None
         )
+        if (
+            context.document_type == "utility_bill"
+            and isinstance(context.parser_output, UtilityBillAnalysisResponse)
+        ):
+            record = self.mapper.from_utility_bill_analysis(
+                context.parser_output,
+                confidence=confidence,
+                quality_score=quality_score,
+            )
+        else:
+            record = self.mapper.from_receipt_analysis(
+                context.parser_output,
+                document_type=context.document_type or "unknown",
+                confidence=confidence,
+                quality_score=quality_score,
+            )
         context.universal_record = record
         return PipelineResult.ok(self.name, payload=record)

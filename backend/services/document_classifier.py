@@ -91,13 +91,13 @@ class DocumentClassifierService:
         if result:
             return result
 
-        # ── Future plug-in point: bank_statement detector ─────────────────────
-        result = self._detect_bank_statement(img, aspect_ratio, file_size_kb)
+        # ── Future plug-in point: utility_bill detector ───────────────────────
+        result = self._detect_utility_bill(img, aspect_ratio, file_size_kb)
         if result:
             return result
 
-        # ── Future plug-in point: utility_bill detector ───────────────────────
-        result = self._detect_utility_bill(img, aspect_ratio, file_size_kb)
+        # ── Future plug-in point: bank_statement detector ─────────────────────
+        result = self._detect_bank_statement(img, aspect_ratio, file_size_kb)
         if result:
             return result
 
@@ -196,13 +196,49 @@ class DocumentClassifierService:
           - Structured table layout
           - Government colour palettes (blues, greens)
 
-        TODO: OCR keyword check for "LESCO", "WAPDA", "SNGPL", "K-Electric",
-              "Reference Number", "Due Date", "Units Consumed".
-        TODO: Logo detection for utility company branding.
-
-        MVP: No reliable heuristic without OCR — returns None (no match).
+        MVP uses a conservative visual proxy: A4-ish portrait layout, a
+        structured page with horizontal table rules, and a blue/green header
+        accent. OCR keyword matching should replace/strengthen this heuristic
+        when an OCR or document-classification model is introduced.
         """
-        return None  # placeholder — defers to receipt default
+        if not (1.25 <= aspect_ratio <= 1.7) or file_size_kb < 20:
+            return None
+
+        height, width = img.shape[:2]
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Utility providers commonly use blue or green branding in the top
+        # header. Restrict the test to the header to avoid colorful item photos.
+        header = hsv[: max(1, height // 4), :]
+        blue_or_green = (
+            (((header[:, :, 0] >= 35) & (header[:, :, 0] <= 130))
+             & (header[:, :, 1] >= 55)
+             & (header[:, :, 2] >= 45))
+        )
+        accent_ratio = float(np.mean(blue_or_green))
+
+        # Detect repeated horizontal rules typical of bill tables.
+        edges = cv2.Canny(gray, 50, 150)
+        kernel_width = max(20, width // 8)
+        horizontal_kernel = cv2.getStructuringElement(
+            cv2.MORPH_RECT, (kernel_width, 1)
+        )
+        horizontal_rules = cv2.morphologyEx(
+            edges, cv2.MORPH_OPEN, horizontal_kernel
+        )
+        rule_ratio = float(np.count_nonzero(horizontal_rules)) / float(height * width)
+
+        if accent_ratio >= 0.015 and rule_ratio >= 0.00015:
+            return DocumentClassificationResult(
+                document_type="utility_bill",
+                confidence="medium",
+                notes=(
+                    f"A4-ish structured page with blue/green header accent "
+                    f"(accent={accent_ratio:.3f}, rules={rule_ratio:.5f})."
+                ),
+            )
+        return None
 
     def _detect_invoice(
         self, img: np.ndarray, aspect_ratio: float, file_size_kb: float

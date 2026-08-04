@@ -1,4 +1,4 @@
-# ADR-0002: Adopt a Reusable Financial Document Processing Pipeline
+# ADR-0003: Adopt a Reusable Financial Document Processing Pipeline
 
 - **Status:** Accepted
 - **Date:** 2026-08-02
@@ -29,9 +29,8 @@ reading the upload, creating the context, invoking the pipeline, and returning
 the existing response. Existing services are reused inside stages rather than
 duplicated.
 
-Receipt parsing dispatches to the existing receipt analysis service. A
-utility-bill parser entry is registered as a placeholder so its implementation
-can be added without changing orchestration.
+Receipt parsing dispatches to the existing receipt analysis service. Utility
+bill parsing dispatches to the dedicated utility-bill service.
 
 ## Consequences
 
@@ -47,7 +46,7 @@ can be added without changing orchestration.
 
 - The pipeline adds several small coordination classes.
 - The current route still keeps its existing MIME-type request gate.
-- Utility bills remain a placeholder until a dedicated parser is implemented.
+- Each new document type needs a parser-specific output adapter.
 
 ## Future extension path
 

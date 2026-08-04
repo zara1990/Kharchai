@@ -25,6 +25,10 @@ The route is intentionally limited to request handling: MIME validation, byte
 reading, context creation, and returning the pipeline result. Business logic
 lives in the reusable pipeline stages.
 
+The parser stage now dispatches `document_type="utility_bill"` to
+`UtilityBillAnalysisService`. Its structured utility output is validated,
+projected into the unchanged legacy response shape, and mapped into the UFR.
+
 ## Universal Financial Record foundation
 
 `UniversalFinancialRecord` is the canonical internal representation for
@@ -36,7 +40,7 @@ API change.
 The UFR supports:
 
 - receipts
-- utility bills
+- Pakistani utility bills (electricity and gas MVP)
 - future wallet screenshots
 - future bank statements
 

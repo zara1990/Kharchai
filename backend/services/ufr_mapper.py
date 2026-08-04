@@ -14,6 +14,10 @@ from schemas.ufr import (
     UniversalFinancialRecordItem,
     UniversalFinancialRecordMetadata,
 )
+from services.utility_bill_analysis import (
+    UTILITY_BILL_PARSER_VERSION,
+    UtilityBillAnalysisResponse,
+)
 
 
 CONFIDENCE_SCORES = {
@@ -74,5 +78,53 @@ class UniversalFinancialRecordMapper:
                 confidence=confidence_value,
                 quality_score=quality_score,
                 parser_version=parser_version,
+            ),
+        )
+
+    def from_utility_bill_analysis(
+        self,
+        analysis: UtilityBillAnalysisResponse,
+        *,
+        confidence: str | float | None = None,
+        quality_score: int | None = None,
+    ) -> UniversalFinancialRecord:
+        """Map utility-specific extraction into the unchanged generic UFR."""
+        if isinstance(confidence, str):
+            confidence_value = CONFIDENCE_SCORES.get(confidence.lower())
+        else:
+            confidence_value = confidence
+
+        utility_metadata = {
+            "consumer_number": analysis.consumer_number,
+            "billing_period": analysis.billing_period,
+            "issue_date": analysis.issue_date,
+            "due_date": analysis.due_date,
+        }
+        items = []
+        if analysis.bill_type or analysis.amount_due is not None:
+            items.append(
+                UniversalFinancialRecordItem(
+                    description=analysis.bill_type or "Utility bill",
+                    amount=analysis.amount_due,
+                    category="utilities",
+                    metadata=utility_metadata,
+                )
+            )
+
+        return UniversalFinancialRecord(
+            record_id=str(uuid4()),
+            document_type="utility_bill",
+            merchant=analysis.provider,
+            document_date=analysis.issue_date,
+            currency=analysis.currency,
+            total_amount=analysis.amount_due,
+            payment_method=None,
+            category="utilities",
+            items=items,
+            metadata=UniversalFinancialRecordMetadata(
+                source="utility_bill_analysis",
+                confidence=confidence_value,
+                quality_score=quality_score,
+                parser_version=UTILITY_BILL_PARSER_VERSION,
             ),
         )

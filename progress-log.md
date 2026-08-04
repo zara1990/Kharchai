@@ -20,5 +20,17 @@
 - Kept the receipt route's public response model, Swagger contract, and error
   behavior unchanged.
 - Added receipt parser dispatch using the existing receipt analysis service.
-- Added a utility-bill parser placeholder for future implementation.
-- Added ADR-0002 documenting the pipeline architecture.
+- Registered the utility-bill parser entry point for future implementation.
+- Added ADR-0003 documenting the pipeline architecture.
+
+## Pakistani Utility Bill Parser MVP
+
+- Added `UtilityBillAnalysisService` with structured OpenAI Vision extraction
+  for provider, bill type, consumer number, billing period, issue date, due
+  date, amount due, and currency.
+- Added null-safe parsing and utility-specific validation.
+- Added utility-bill classifier routing and pipeline dispatch.
+- Added utility-bill-to-UFR mapping while preserving the existing upload
+  response schema.
+- Receipt extraction and its prompt remain unchanged.
+- Added ADR-0002 documenting the utility-bill parser MVP.

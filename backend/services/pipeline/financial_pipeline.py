@@ -14,6 +14,7 @@ from services.pipeline.stages.validation_stage import ValidationStage
 from services.receipt_analysis import ReceiptAnalysisService
 from services.ufr_mapper import UniversalFinancialRecordMapper
 from services.validation import ReceiptValidationService
+from services.utility_bill_analysis import UtilityBillAnalysisService
 
 
 class FinancialPipeline:
@@ -28,6 +29,7 @@ class FinancialPipeline:
         normalization_service: NormalizationService | None = None,
         validation_service: ReceiptValidationService | None = None,
         ufr_mapper: UniversalFinancialRecordMapper | None = None,
+        utility_bill_service: UtilityBillAnalysisService | None = None,
     ):
         quality_service = quality_service or ImageQualityService()
         classifier_service = classifier_service or DocumentClassifierService()
@@ -35,11 +37,19 @@ class FinancialPipeline:
         normalization_service = normalization_service or NormalizationService()
         validation_service = validation_service or ReceiptValidationService()
         ufr_mapper = ufr_mapper or UniversalFinancialRecordMapper()
+        utility_bill_service = utility_bill_service or UtilityBillAnalysisService()
 
         self.quality_stage = QualityStage(quality_service)
         self.classifier_stage = ClassifierStage(classifier_service)
-        self.parser_stage = ParserStage(receipt_service, normalization_service)
-        self.validation_stage = ValidationStage(validation_service)
+        self.parser_stage = ParserStage(
+            receipt_service,
+            normalization_service,
+            utility_bill_service,
+        )
+        self.validation_stage = ValidationStage(
+            validation_service,
+            utility_bill_service,
+        )
         self.ufr_stage = UFRStage(ufr_mapper)
 
     async def process(self, context: PipelineContext) -> PipelineResult:
@@ -51,21 +61,6 @@ class FinancialPipeline:
             result = stage.process(context)
             if not result.success:
                 return result
-
-        # Preserve existing endpoint behavior: every non-receipt classification
-        # is rejected before extraction. The utility-bill parser remains
-        # available for the milestone's future parser dispatch path.
-        if context.document_type != "receipt":
-            return PipelineResult.fail(
-                "classifier",
-                errors=["Only receipt documents are currently supported."],
-                payload={
-                    "status": "unsupported_document",
-                    "document_type": context.document_type,
-                    "message": "This document type is planned but not yet supported.",
-                },
-                http_status_code=400,
-            )
 
         result = await self.parser_stage.process(context)
         if not result.success:
@@ -83,6 +78,7 @@ class FinancialPipeline:
             context.quality_report is None
             or context.parser_output is None
             or context.validation_result is None
+            or context.legacy_receipt_output is None
         ):
             return PipelineResult.fail(
                 "response",
@@ -91,9 +87,9 @@ class FinancialPipeline:
             )
 
         context.final_response = ReceiptUploadResponse(
-            status=context.parser_output.status,
+            status=context.legacy_receipt_output.status,
             quality=context.quality_report,
             validation=context.validation_result,
-            receipt=context.parser_output,
+            receipt=context.legacy_receipt_output,
         )
         return PipelineResult.ok("response", payload=context.final_response)
