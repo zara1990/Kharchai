@@ -23,6 +23,13 @@ class UniversalFinancialRecordItem(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class ReviewHint(BaseModel):
+    """A deterministic field-level explanation for human review."""
+
+    field: str
+    message: str
+
+
 class UniversalFinancialRecordMetadata(BaseModel):
     """Processing provenance, quality, and deterministic review information."""
 
@@ -30,6 +37,7 @@ class UniversalFinancialRecordMetadata(BaseModel):
     confidence: Optional[float] = None
     confidence_level: Optional[str] = None
     review_required: Optional[bool] = None
+    review_hints: List[ReviewHint] = Field(default_factory=list)
     quality_score: Optional[int] = None
     parser_version: str
 

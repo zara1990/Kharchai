@@ -68,3 +68,15 @@
 - Added a post-UFR `ConfidenceStage` that enriches only internal UFR metadata.
 - Preserved the existing upload response schema and quality-gate behavior.
 - Added ADR-0006 documenting the confidence-scoring architecture.
+
+## Intelligent Human Review Workflow MVP
+
+- Added deterministic `ReviewHintService` for field-level review explanations.
+- Added `ReviewHint` metadata entries containing `field` and `message`.
+- Added post-confidence `ReviewHintsStage` for missing fields, total
+  mismatches, and low image quality.
+- Added utility-bill hints for missing consumer number, billing period, and due
+  date.
+- Added wallet hints for missing transaction reference and direction.
+- Preserved the existing upload response schema.
+- Added ADR-0007 documenting the review-hint workflow.

@@ -10,6 +10,7 @@ from services.pipeline.stages.classifier_stage import ClassifierStage
 from services.pipeline.stages.confidence_stage import ConfidenceStage
 from services.pipeline.stages.parser_stage import ParserStage
 from services.pipeline.stages.quality_stage import QualityStage
+from services.pipeline.stages.review_hints_stage import ReviewHintsStage
 from services.pipeline.stages.ufr_stage import UFRStage
 from services.pipeline.stages.validation_stage import ValidationStage
 from services.parsers.parser_registry import ParserRegistry
@@ -19,6 +20,7 @@ from services.validation import ReceiptValidationService
 from services.utility_bill_analysis import UtilityBillAnalysisService
 from parsers.wallet_parser import WalletParser
 from services.confidence import ConfidenceService
+from services.review_hints import ReviewHintService
 
 
 class FinancialPipeline:
@@ -36,6 +38,7 @@ class FinancialPipeline:
         utility_bill_service: UtilityBillAnalysisService | None = None,
         wallet_parser: WalletParser | None = None,
         confidence_service: ConfidenceService | None = None,
+        review_hint_service: ReviewHintService | None = None,
         parser_registry: ParserRegistry | None = None,
     ):
         quality_service = quality_service or ImageQualityService()
@@ -47,6 +50,7 @@ class FinancialPipeline:
         utility_bill_service = utility_bill_service or UtilityBillAnalysisService()
         wallet_parser = wallet_parser or WalletParser()
         confidence_service = confidence_service or ConfidenceService()
+        review_hint_service = review_hint_service or ReviewHintService()
         parser_registry = parser_registry or ParserRegistry(
             receipt_parser=receipt_service,
             utility_bill_parser=utility_bill_service,
@@ -64,6 +68,7 @@ class FinancialPipeline:
         )
         self.ufr_stage = UFRStage(ufr_mapper)
         self.confidence_stage = ConfidenceStage(confidence_service)
+        self.review_hints_stage = ReviewHintsStage(review_hint_service)
 
     async def process(self, context: PipelineContext) -> PipelineResult:
         """Run the pipeline and return a result containing the legacy response."""
@@ -88,6 +93,10 @@ class FinancialPipeline:
             return result
 
         result = self.confidence_stage.process(context)
+        if not result.success:
+            return result
+
+        result = self.review_hints_stage.process(context)
         if not result.success:
             return result
 

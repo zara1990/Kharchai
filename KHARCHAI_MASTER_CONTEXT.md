@@ -21,6 +21,7 @@ Upload
       → Validation Stage
       → UFR Stage
       → Confidence Stage
+      → Review Hints Stage
   → Existing ReceiptUploadResponse
 ```
 
@@ -66,6 +67,12 @@ with a normalized confidence score, confidence level, and review decision. It
 combines image quality (30%), required-field completeness (30%), validation
 result (20%), and classifier/parser confidence (20%). It does not use the LLM.
 The upload response remains unchanged.
+
+After confidence scoring, `ReviewHintsStage` deterministically analyzes the
+generated UFR, image quality, and validation report. It stores field-level
+`{field, message}` hints in UFR metadata for missing receipt, utility-bill, and
+wallet fields, validation mismatches, and low image quality. It does not use
+the LLM and does not alter the upload response.
 
 ## Workflow conventions
 
