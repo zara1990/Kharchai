@@ -17,3 +17,15 @@ downstream consumers to each parser and preserves backward compatibility.
 **How to apply:** Add a document-specific parser and mapper that returns the
 UFR. Keep the existing receipt upload response unchanged unless a later
 milestone explicitly introduces a versioned public UFR response.
+
+Utility parsers may retain fields that do not fit the legacy receipt response
+inside UFR item metadata while returning a compatibility projection to existing
+clients.
+
+**Why:** Utility bills contain identifiers and billing periods that are not
+part of the established receipt response, but exposing them directly would
+break current clients.
+
+**How to apply:** Keep parser-specific extraction models internal, map their
+complete data into UFR, and only project the minimum legacy fields into the
+current upload response.
