@@ -1,3 +1,4 @@
 - [KharchAI project conventions](kharchai-conventions.md) — milestone-by-milestone build; inspect repo before changes; no speculative features.
 - [Universal Financial Record](universal-financial-record.md) — all document parsers should map into the internal UFR while preserving legacy receipt API responses.
 - [Parser registry](parser-registry.md) — parser selection belongs in the registry; pipeline stages should resolve registrations rather than add document-type branches.
+- [Confidence scoring](confidence-scoring.md) — deterministic confidence is calculated after UFR creation from quality, completeness, validation, and parser factors.

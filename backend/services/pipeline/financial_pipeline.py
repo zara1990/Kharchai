@@ -7,6 +7,7 @@ from services.normalization import NormalizationService
 from services.pipeline.pipeline_context import PipelineContext
 from services.pipeline.pipeline_result import PipelineResult
 from services.pipeline.stages.classifier_stage import ClassifierStage
+from services.pipeline.stages.confidence_stage import ConfidenceStage
 from services.pipeline.stages.parser_stage import ParserStage
 from services.pipeline.stages.quality_stage import QualityStage
 from services.pipeline.stages.ufr_stage import UFRStage
@@ -17,6 +18,7 @@ from services.ufr_mapper import UniversalFinancialRecordMapper
 from services.validation import ReceiptValidationService
 from services.utility_bill_analysis import UtilityBillAnalysisService
 from parsers.wallet_parser import WalletParser
+from services.confidence import ConfidenceService
 
 
 class FinancialPipeline:
@@ -33,6 +35,7 @@ class FinancialPipeline:
         ufr_mapper: UniversalFinancialRecordMapper | None = None,
         utility_bill_service: UtilityBillAnalysisService | None = None,
         wallet_parser: WalletParser | None = None,
+        confidence_service: ConfidenceService | None = None,
         parser_registry: ParserRegistry | None = None,
     ):
         quality_service = quality_service or ImageQualityService()
@@ -43,6 +46,7 @@ class FinancialPipeline:
         ufr_mapper = ufr_mapper or UniversalFinancialRecordMapper()
         utility_bill_service = utility_bill_service or UtilityBillAnalysisService()
         wallet_parser = wallet_parser or WalletParser()
+        confidence_service = confidence_service or ConfidenceService()
         parser_registry = parser_registry or ParserRegistry(
             receipt_parser=receipt_service,
             utility_bill_parser=utility_bill_service,
@@ -59,6 +63,7 @@ class FinancialPipeline:
             wallet_parser,
         )
         self.ufr_stage = UFRStage(ufr_mapper)
+        self.confidence_stage = ConfidenceStage(confidence_service)
 
     async def process(self, context: PipelineContext) -> PipelineResult:
         """Run the pipeline and return a result containing the legacy response."""
@@ -79,6 +84,10 @@ class FinancialPipeline:
             return result
 
         result = self.ufr_stage.process(context)
+        if not result.success:
+            return result
+
+        result = self.confidence_stage.process(context)
         if not result.success:
             return result
 

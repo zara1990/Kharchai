@@ -11,6 +11,7 @@ Exports:
     WalletParser              — EasyPaisa/JazzCash wallet Vision extraction
     ParserRegistry           — centralized document parser selection
     ReceiptValidationService   — extracted-data validation
+    ConfidenceService        — deterministic UFR confidence scoring
 """
 
 from services.document_classifier import DocumentClassifierService
@@ -21,6 +22,7 @@ from services.ufr_mapper import UniversalFinancialRecordMapper
 from services.utility_bill_analysis import UtilityBillAnalysisService
 from services.parsers.parser_registry import ParserRegistry
 from parsers.wallet_parser import WalletParser
+from services.confidence import ConfidenceService
 from services.validation import ReceiptValidationService
 
 __all__ = [
@@ -32,5 +34,6 @@ __all__ = [
     "UtilityBillAnalysisService",
     "ParserRegistry",
     "WalletParser",
+    "ConfidenceService",
     "ReceiptValidationService",
 ]

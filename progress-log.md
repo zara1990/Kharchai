@@ -59,3 +59,12 @@
 - Preserved the existing receipt-shaped upload response and receipt/utility
   parser implementations.
 - Added ADR-0005 documenting the wallet parser architecture.
+
+## Confidence Scoring Engine MVP
+
+- Added a deterministic `ConfidenceService` with weighted image-quality,
+  required-field completeness, validation, and parser-confidence factors.
+- Added HIGH, GOOD, MEDIUM, and LOW score levels with review decisions.
+- Added a post-UFR `ConfidenceStage` that enriches only internal UFR metadata.
+- Preserved the existing upload response schema and quality-gate behavior.
+- Added ADR-0006 documenting the confidence-scoring architecture.

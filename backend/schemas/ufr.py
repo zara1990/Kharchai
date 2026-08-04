@@ -24,10 +24,12 @@ class UniversalFinancialRecordItem(BaseModel):
 
 
 class UniversalFinancialRecordMetadata(BaseModel):
-    """Processing provenance and quality information for a UFR."""
+    """Processing provenance, quality, and deterministic review information."""
 
     source: str
     confidence: Optional[float] = None
+    confidence_level: Optional[str] = None
+    review_required: Optional[bool] = None
     quality_score: Optional[int] = None
     parser_version: str
 

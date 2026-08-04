@@ -20,6 +20,7 @@ Upload
               → WalletParser
       → Validation Stage
       → UFR Stage
+      → Confidence Stage
   → Existing ReceiptUploadResponse
 ```
 
@@ -59,6 +60,12 @@ The UFR supports:
 Future document-specific parsers should produce their own extraction output and
 map it into the same UFR schema before persistence, calculations, or financial
 reasoning.
+
+After UFR creation, `ConfidenceStage` deterministically enriches UFR metadata
+with a normalized confidence score, confidence level, and review decision. It
+combines image quality (30%), required-field completeness (30%), validation
+result (20%), and classifier/parser confidence (20%). It does not use the LLM.
+The upload response remains unchanged.
 
 ## Workflow conventions
 
