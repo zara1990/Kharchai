@@ -1,0 +1,65 @@
+Milestone 5.5 – Wallet Screenshot Parser (EasyPaisa/JazzCash MVP)
+
+Inspect the existing project before making changes.
+
+Goals:
+1. Preserve all working functionality.
+2. Do not modify the receipt or utility bill parsers except to register the new parser.
+3. Reuse the existing Universal Financial Record (UFR).
+4. Do not add unnecessary dependencies.
+5. Never hardcode secrets.
+6. Test everything before completion.
+
+Implement the following:
+
+1. Create backend/parsers/wallet_parser.py.
+   - Use the existing OpenAI integration.
+   - Extract:
+     - wallet_name
+     - transaction_type
+     - amount
+     - currency
+     - counterparty
+     - transaction_date
+     - transaction_time
+     - transaction_reference
+   - Support EasyPaisa and JazzCash MVP.
+   - If a field is missing, return null instead of failing.
+
+2. Create backend/prompts/wallet_prompt.txt.
+   - Instruct the model to extract structured JSON only.
+   - Support Pakistani EasyPaisa and JazzCash transaction screenshots.
+   - Do not infer missing values.
+
+3. Create backend/schemas/wallet.py.
+   - Define a strongly typed schema for wallet extraction.
+
+4. Register the wallet parser in the existing parser registry.
+   - The document classifier should route wallet screenshots to this parser.
+
+5. Map the extracted wallet data into the existing Universal Financial Record (UFR).
+   - Do not create a new financial record format.
+
+6. Preserve backward compatibility.
+   - Receipt parsing must still work.
+   - Utility bill parsing must still work.
+   - Existing API response structure must remain unchanged.
+
+7. Documentation updates:
+   - Update KHARCHAI_MASTER_CONTEXT.md.
+   - Update progress-log.md.
+   - Create a new ADR documenting the Wallet Screenshot Parser architecture and its use of the UFR.
+
+Verification:
+- Receipt upload still returns HTTP 200.
+- Utility bill upload still returns HTTP 200.
+- Wallet screenshots are classified correctly.
+- EasyPaisa sample produces a valid UFR.
+- JazzCash sample produces a valid UFR.
+- Swagger documentation remains accurate.
+
+Report:
+- Files changed.
+- Test results.
+- Verification steps.
+- Any assumptions or limitations.
