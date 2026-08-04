@@ -1,4 +1,4 @@
-# ADR-0003: Adopt a Reusable Financial Document Processing Pipeline
+# ADR-0004: Adopt a Reusable Financial Document Processing Pipeline
 
 - **Status:** Accepted
 - **Date:** 2026-08-02
@@ -34,26 +34,7 @@ bill parsing dispatches to the dedicated utility-bill service.
 
 ## Consequences
 
-### Positive
-
 - Processing order is explicit and reusable.
 - Stages share state through one context instead of many independent arguments.
 - Future document parsers can be registered without expanding route logic.
 - Existing API behavior remains stable.
-- Stage results provide a consistent place for warnings, errors, and payloads.
-
-### Trade-offs
-
-- The pipeline adds several small coordination classes.
-- The current route still keeps its existing MIME-type request gate.
-- Each new document type needs a parser-specific output adapter.
-
-## Future extension path
-
-When a new document type is supported:
-
-1. Add its parser to `ParserStage`.
-2. Reuse or add a document-specific normalization adapter.
-3. Map the parser output to `UniversalFinancialRecord` in `UFRStage`.
-4. Preserve the shared validation and response boundary unless a later
-   milestone explicitly changes the public API.

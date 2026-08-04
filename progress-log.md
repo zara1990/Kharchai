@@ -34,3 +34,12 @@
   response schema.
 - Receipt extraction and its prompt remain unchanged.
 - Added ADR-0002 documenting the utility-bill parser MVP.
+
+## Parser Registry
+
+- Added `ParserRegistry` with receipt and utility-bill registrations.
+- Refactored `ParserStage` to resolve parsers from the registry.
+- Preserved existing parser services, validation, UFR mapping, and API
+  response behavior.
+- Added controlled unsupported-document handling for registry lookup misses.
+- Added ADR-0003 documenting parser registry architecture.

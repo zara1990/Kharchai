@@ -11,6 +11,7 @@ from services.pipeline.stages.parser_stage import ParserStage
 from services.pipeline.stages.quality_stage import QualityStage
 from services.pipeline.stages.ufr_stage import UFRStage
 from services.pipeline.stages.validation_stage import ValidationStage
+from services.parsers.parser_registry import ParserRegistry
 from services.receipt_analysis import ReceiptAnalysisService
 from services.ufr_mapper import UniversalFinancialRecordMapper
 from services.validation import ReceiptValidationService
@@ -30,6 +31,7 @@ class FinancialPipeline:
         validation_service: ReceiptValidationService | None = None,
         ufr_mapper: UniversalFinancialRecordMapper | None = None,
         utility_bill_service: UtilityBillAnalysisService | None = None,
+        parser_registry: ParserRegistry | None = None,
     ):
         quality_service = quality_service or ImageQualityService()
         classifier_service = classifier_service or DocumentClassifierService()
@@ -38,14 +40,15 @@ class FinancialPipeline:
         validation_service = validation_service or ReceiptValidationService()
         ufr_mapper = ufr_mapper or UniversalFinancialRecordMapper()
         utility_bill_service = utility_bill_service or UtilityBillAnalysisService()
+        parser_registry = parser_registry or ParserRegistry(
+            receipt_parser=receipt_service,
+            utility_bill_parser=utility_bill_service,
+            normalization_service=normalization_service,
+        )
 
         self.quality_stage = QualityStage(quality_service)
         self.classifier_stage = ClassifierStage(classifier_service)
-        self.parser_stage = ParserStage(
-            receipt_service,
-            normalization_service,
-            utility_bill_service,
-        )
+        self.parser_stage = ParserStage(parser_registry)
         self.validation_stage = ValidationStage(
             validation_service,
             utility_bill_service,

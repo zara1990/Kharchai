@@ -1,45 +1,30 @@
 """Document parser dispatch stage."""
 
-from typing import Any, Awaitable, Callable
-
-from schemas.receipt import ReceiptAnalysisResponse
-from services.normalization import NormalizationService
 from services.pipeline.pipeline_context import PipelineContext
 from services.pipeline.pipeline_result import PipelineResult
-from services.receipt_analysis import ReceiptAnalysisService
-from services.utility_bill_analysis import (
-    UtilityBillAnalysisResponse,
-    UtilityBillAnalysisService,
-)
+from services.parsers.parser_registry import ParserRegistry
 
 
 class ParserStage:
     """
     Dispatches parser work by document type.
 
-    Receipt uses the existing OpenAI receipt analysis service. Utility bills
-    use the dedicated UtilityBillAnalysisService.
+    Parser selection is delegated to ParserRegistry. This stage only executes
+    the resolved parser and its registered adapters.
     """
 
     name = "parser"
 
     def __init__(
         self,
-        receipt_service: ReceiptAnalysisService,
-        normalization_service: NormalizationService,
-        utility_bill_service: UtilityBillAnalysisService | None = None,
+        parser_registry: ParserRegistry,
     ):
-        self.receipt_service = receipt_service
-        self.normalization_service = normalization_service
-        self.utility_bill_service = utility_bill_service or UtilityBillAnalysisService()
-        self._parsers: dict[str, Callable[[PipelineContext], Awaitable[Any]]] = {
-            "receipt": self._parse_receipt,
-            "utility_bill": self._parse_utility_bill,
-        }
+        self.parser_registry = parser_registry
 
     async def process(self, context: PipelineContext) -> PipelineResult:
-        parser = self._parsers.get(context.document_type or "")
-        if parser is None:
+        document_type = context.document_type or ""
+        registration = self.parser_registry.get_registration(document_type)
+        if registration is None:
             return PipelineResult.fail(
                 self.name,
                 errors=[f"No parser registered for document type: {context.document_type}"],
@@ -51,29 +36,12 @@ class ParserStage:
                 http_status_code=400,
             )
 
-        parsed = await parser(context)
+        parsed = await registration.parser.process_bytes(
+            context.image_bytes,
+            context.filename,
+            context.content_type,
+        )
+        parsed = registration.normalize(parsed)
         context.parser_output = parsed
-        if context.document_type == "receipt":
-            context.legacy_receipt_output = parsed
-        elif isinstance(parsed, UtilityBillAnalysisResponse):
-            context.legacy_receipt_output = (
-                self.utility_bill_service.to_legacy_receipt_response(parsed)
-            )
+        context.legacy_receipt_output = registration.to_legacy_response(parsed)
         return PipelineResult.ok(self.name, payload=parsed)
-
-    async def _parse_receipt(self, context: PipelineContext) -> ReceiptAnalysisResponse:
-        parsed = await self.receipt_service.process_bytes(
-            context.image_bytes,
-            context.filename,
-            context.content_type,
-        )
-        return self.normalization_service.normalize(parsed, "receipt")
-
-    async def _parse_utility_bill(
-        self, context: PipelineContext
-    ) -> UtilityBillAnalysisResponse:
-        return await self.utility_bill_service.process_bytes(
-            context.image_bytes,
-            context.filename,
-            context.content_type,
-        )

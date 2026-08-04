@@ -14,6 +14,9 @@ Upload
       → Image Quality Stage
       → Classifier Stage
       → Parser Stage
+          → Parser Registry
+              → ReceiptAnalysisService
+              → UtilityBillAnalysisService
       → Validation Stage
       → UFR Stage
   → Existing ReceiptUploadResponse
@@ -28,6 +31,9 @@ lives in the reusable pipeline stages.
 The parser stage now dispatches `document_type="utility_bill"` to
 `UtilityBillAnalysisService`. Its structured utility output is validated,
 projected into the unchanged legacy response shape, and mapped into the UFR.
+
+Parser selection is centralized in `ParserRegistry`. New document parsers are
+registered there rather than adding document-type branches to the pipeline.
 
 ## Universal Financial Record foundation
 
