@@ -1,13 +1,29 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ProcessingPlaceholder'>;
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  'ProcessingPlaceholder'
+>;
 
-export default function ProcessingPlaceholderScreen({ route }: Props) {
+export default function ProcessingPlaceholderScreen({
+  navigation,
+  route,
+}: Props) {
   const { capturedImages } = route.params;
   const imageCount = capturedImages.length;
+
+  const handleDone = () => {
+    navigation.popToTop();
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -30,20 +46,37 @@ export default function ProcessingPlaceholderScreen({ route }: Props) {
             until you submit it in a future step.
           </Text>
         </View>
+
+        <TouchableOpacity
+          style={styles.doneButton}
+          onPress={handleDone}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.doneButtonText}>Done</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  icon: { fontSize: 64, marginBottom: 24 },
+
+  icon: {
+    fontSize: 64,
+    marginBottom: 24,
+  },
+
   title: {
     fontSize: 24,
     fontWeight: '800',
@@ -51,6 +84,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
+
   body: {
     fontSize: 15,
     color: '#555',
@@ -58,6 +92,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 32,
   },
+
   infoBox: {
     backgroundColor: '#EDF7F0',
     borderRadius: 12,
@@ -65,11 +100,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#A8D5B8',
     width: '100%',
+    marginBottom: 24,
   },
+
   infoText: {
     color: '#1B5E3B',
     fontSize: 13,
     lineHeight: 20,
     textAlign: 'center',
+  },
+
+  doneButton: {
+    backgroundColor: '#1B5E3B',
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 3,
+  },
+
+  doneButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
   },
 });
