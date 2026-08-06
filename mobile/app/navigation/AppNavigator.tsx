@@ -4,7 +4,8 @@ import HomeScreen from '../screens/HomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 import CameraScreen from '../screens/CameraScreen';
 import ReceiptPreviewScreen from '../screens/ReceiptPreviewScreen';
-import ProcessingPlaceholderScreen from '../screens/ProcessingPlaceholderScreen';
+import ProcessingScreen from '../screens/ProcessingScreen';
+import ReviewScreen from '../screens/ReviewScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -14,7 +15,11 @@ export type RootStackParamList = {
     /** Array of local image URIs — structured for multi-photo support in a future milestone */
     capturedImages: string[];
   };
-  ProcessingPlaceholder: {
+  Processing: {
+    capturedImages: string[];
+  };
+  Review: {
+    imageUri: string;
     capturedImages: string[];
   };
 };
@@ -54,8 +59,13 @@ export default function AppNavigator() {
         options={{ title: 'Receipt Preview', headerStyle: { backgroundColor: '#1A1A2E' } }}
       />
       <Stack.Screen
-        name="ProcessingPlaceholder"
-        component={ProcessingPlaceholderScreen}
+        name="Processing"
+        component={ProcessingScreen}
+        options={{ title: 'Processing', headerBackVisible: false }}
+      />
+      <Stack.Screen
+        name="Review"
+        component={ReviewScreen}
         options={{ title: 'Review' }}
       />
     </Stack.Navigator>

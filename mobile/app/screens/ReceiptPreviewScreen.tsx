@@ -29,7 +29,7 @@ export default function ReceiptPreviewScreen({ navigation, route }: Props) {
   };
 
   const handleContinue = () => {
-    navigation.navigate('ProcessingPlaceholder', { capturedImages });
+    navigation.navigate('Processing', { capturedImages });
   };
 
   return (
