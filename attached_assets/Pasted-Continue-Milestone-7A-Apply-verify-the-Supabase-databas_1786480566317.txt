@@ -1,0 +1,66 @@
+Continue Milestone 7A — Apply/verify the Supabase database schema.
+
+The previous Supabase foundation milestone completed successfully.
+
+Current verified state:
+
+Supabase reachable: YES
+financial_records schema available: NO
+
+Commit:
+ea7932e — Add Supabase persistence foundation
+
+IMPORTANT:
+Do NOT change the existing upload pipeline.
+Do NOT change ReviewResponse.
+Do NOT change parsers.
+Do NOT change UFR.
+Do NOT implement the save endpoint.
+Do NOT modify Android code.
+
+Your only task now is to determine why the financial_records schema is unavailable.
+
+1. Inspect the repository for the SQL migration/schema file created during the previous milestone.
+
+2. Inspect the exact intended financial_records schema and confirm that it is compatible with the existing UFR.
+
+3. Determine whether the migration was:
+   - created but not applied to Supabase, OR
+   - not created correctly.
+
+4. If the migration file already exists, DO NOT redesign it. Verify it and report its exact location.
+
+5. If it does not exist, create the minimum migration required for financial_records based on the existing UFR implementation.
+
+6. Do NOT attempt destructive database operations.
+
+7. Do NOT drop or recreate existing tables.
+
+8. If the repository has no safe mechanism for applying SQL migrations to the Supabase database, DO NOT invent one.
+
+Instead, provide the exact SQL migration that must be executed in the Supabase SQL Editor and clearly state that the schema is pending manual application.
+
+9. If the existing project has a safe, already-configured migration mechanism that can apply the migration, use it and verify:
+
+financial_records schema available: YES
+
+10. After schema creation/application, rerun the existing Supabase verification.
+
+11. Confirm that the existing backend still starts successfully.
+
+12. Run relevant tests.
+
+STOP after the schema is successfully verified or after providing the exact SQL required for manual application.
+
+Do NOT proceed to the Save Reviewed Record milestone.
+
+Final report must state:
+
+- migration file location
+- whether schema was already present
+- whether migration was applied
+- current Supabase reachability
+- current financial_records schema availability
+- tests performed
+- files changed
+- commit hash if a new commit was necessary
