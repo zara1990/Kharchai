@@ -27,4 +27,5 @@ class ReviewHintsStage:
             validation_report=context.validation_result,
         )
         context.universal_record.metadata.review_hints = hints
+        context.review_hints = hints
         return PipelineResult.ok(self.name, payload=hints)

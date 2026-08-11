@@ -33,4 +33,5 @@ class ConfidenceStage:
         context.universal_record.metadata.confidence = result.confidence
         context.universal_record.metadata.confidence_level = result.confidence_level
         context.universal_record.metadata.review_required = result.review_required
+        context.confidence_result = result
         return PipelineResult.ok(self.name, payload=result)

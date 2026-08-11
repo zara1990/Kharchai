@@ -21,6 +21,7 @@ from services.utility_bill_analysis import UtilityBillAnalysisService
 from parsers.wallet_parser import WalletParser
 from services.confidence import ConfidenceService
 from services.review_hints import ReviewHintService
+from services.review_response_builder import ReviewResponseBuilder
 
 
 class FinancialPipeline:
@@ -39,6 +40,7 @@ class FinancialPipeline:
         wallet_parser: WalletParser | None = None,
         confidence_service: ConfidenceService | None = None,
         review_hint_service: ReviewHintService | None = None,
+        review_response_builder: ReviewResponseBuilder | None = None,
         parser_registry: ParserRegistry | None = None,
     ):
         quality_service = quality_service or ImageQualityService()
@@ -51,6 +53,7 @@ class FinancialPipeline:
         wallet_parser = wallet_parser or WalletParser()
         confidence_service = confidence_service or ConfidenceService()
         review_hint_service = review_hint_service or ReviewHintService()
+        review_response_builder = review_response_builder or ReviewResponseBuilder()
         parser_registry = parser_registry or ParserRegistry(
             receipt_parser=receipt_service,
             utility_bill_parser=utility_bill_service,
@@ -69,6 +72,7 @@ class FinancialPipeline:
         self.ufr_stage = UFRStage(ufr_mapper)
         self.confidence_stage = ConfidenceStage(confidence_service)
         self.review_hints_stage = ReviewHintsStage(review_hint_service)
+        self.review_response_builder = review_response_builder
 
     async def process(self, context: PipelineContext) -> PipelineResult:
         """Run the pipeline and return a result containing the legacy response."""
@@ -112,10 +116,21 @@ class FinancialPipeline:
                 http_status_code=500,
             )
 
-        context.final_response = ReceiptUploadResponse(
+        legacy_response = ReceiptUploadResponse(
             status=context.legacy_receipt_output.status,
             quality=context.quality_report,
             validation=context.validation_result,
             receipt=context.legacy_receipt_output,
         )
-        return PipelineResult.ok("response", payload=context.final_response)
+        context.final_response = legacy_response
+        context.review_response = self.review_response_builder.build(
+            record=context.universal_record,
+            validation_results=context.validation_result,
+            confidence_results=context.confidence_result,
+            review_hints=context.review_hints,
+            original_image_reference=context.filename,
+            processing_metadata={"content_type": context.content_type},
+            quality_report=context.quality_report,
+            legacy_response=legacy_response,
+        )
+        return PipelineResult.ok("response", payload=context.review_response)

@@ -80,3 +80,20 @@
 - Added wallet hints for missing transaction reference and direction.
 - Preserved the existing upload response schema.
 - Added ADR-0007 documenting the review-hint workflow.
+
+## Review Response Builder MVP
+
+- Added a typed `ReviewResponse` schema for the Android Review Screen.
+- Added editable extracted fields with propagated deterministic confidence.
+- Added extracted UFR items, validation warnings, review hints, and processing
+  metadata to the frontend-facing response.
+- Added document-specific editable fields for utility bills and wallet
+  screenshots while preserving their UFR item metadata.
+- Preserved legacy `status`, `quality`, `validation`, and `receipt` fields
+  inside the new response for backward compatibility.
+- Integrated response construction after quality, classification, parsing,
+  validation, UFR mapping, confidence, and review-hint stages.
+- Verified receipt, utility-bill, and wallet pipeline paths, route OpenAPI
+  output, HTTP 200 serialization, MIME rejection, quality rejection, and
+  unsupported-document behavior.
+- Added ADR-0008 documenting the Review Response boundary.

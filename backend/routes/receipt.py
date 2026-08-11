@@ -1,6 +1,6 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from schemas.receipt import ReceiptUploadResponse
+from schemas.review_response import ReviewResponse
 from services.pipeline import FinancialPipeline, PipelineContext
 
 router = APIRouter(prefix="/api/v1/receipt", tags=["Receipt"])
@@ -19,7 +19,7 @@ _financial_pipeline = FinancialPipeline()
 
 @router.post(
     "/upload",
-    response_model=ReceiptUploadResponse,
+    response_model=ReviewResponse,
     summary="Upload a financial document image for AI analysis",
     description=(
         "Accepts a financial document image (JPEG, PNG, GIF, WebP, BMP, TIFF). "

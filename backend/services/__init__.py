@@ -13,6 +13,7 @@ Exports:
     ReceiptValidationService   — extracted-data validation
     ConfidenceService        — deterministic UFR confidence scoring
     ReviewHintService        — deterministic field-level review hints
+    ReviewResponseBuilder    — Android review-screen response builder
 """
 
 from services.document_classifier import DocumentClassifierService
@@ -25,6 +26,7 @@ from services.parsers.parser_registry import ParserRegistry
 from parsers.wallet_parser import WalletParser
 from services.confidence import ConfidenceService
 from services.review_hints import ReviewHintService
+from services.review_response_builder import ReviewResponseBuilder
 from services.validation import ReceiptValidationService
 
 __all__ = [
@@ -38,5 +40,6 @@ __all__ = [
     "WalletParser",
     "ConfidenceService",
     "ReviewHintService",
+    "ReviewResponseBuilder",
     "ReceiptValidationService",
 ]

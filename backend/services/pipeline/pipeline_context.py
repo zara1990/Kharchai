@@ -10,7 +10,10 @@ from schemas.receipt import (
     ReceiptValidationReport,
 )
 from schemas.ufr import UniversalFinancialRecord
+from schemas.review_response import ReviewResponse
 from services.document_classifier import DocumentClassificationResult
+from services.confidence import ConfidenceResult
+from schemas.ufr import ReviewHint
 
 
 @dataclass
@@ -28,5 +31,8 @@ class PipelineContext:
     legacy_receipt_output: Optional[ReceiptAnalysisResponse] = None
     validation_result: Optional[ReceiptValidationReport] = None
     universal_record: Optional[UniversalFinancialRecord] = None
+    confidence_result: Optional[ConfidenceResult] = None
+    review_hints: list[ReviewHint] = field(default_factory=list)
+    review_response: Optional[ReviewResponse] = None
     warnings: list[str] = field(default_factory=list)
     final_response: Optional[ReceiptUploadResponse] = None

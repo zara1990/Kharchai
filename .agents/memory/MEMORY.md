@@ -3,3 +3,4 @@
 - [Parser registry](parser-registry.md) — parser selection belongs in the registry; pipeline stages should resolve registrations rather than add document-type branches.
 - [Confidence scoring](confidence-scoring.md) — deterministic confidence is calculated after UFR creation from quality, completeness, validation, and parser factors.
 - [Review hints](review-hints.md) — field-level deterministic review hints run after confidence and remain internal UFR metadata.
+- [FastAPI route verification](fastapi-route-verification.md) — included routers may be lazy; verify public routes through OpenAPI or live requests.

@@ -22,10 +22,15 @@ Upload
       → UFR Stage
       → Confidence Stage
       → Review Hints Stage
-  → Existing ReceiptUploadResponse
+       → Review Response Builder
+  → ReviewResponse
 ```
 
-Receipt extraction and the public receipt response remain unchanged.
+Receipt extraction, validation, and quality gates remain unchanged. The upload
+endpoint now returns a frontend-friendly `ReviewResponse` containing document
+type, editable extracted fields, extracted items, validation warnings, review
+hints, confidence, and processing metadata. The legacy `status`, `quality`,
+`validation`, and `receipt` fields remain embedded for backward compatibility.
 
 The route is intentionally limited to request handling: MIME validation, byte
 reading, context creation, and returning the pipeline result. Business logic
@@ -72,7 +77,14 @@ After confidence scoring, `ReviewHintsStage` deterministically analyzes the
 generated UFR, image quality, and validation report. It stores field-level
 `{field, message}` hints in UFR metadata for missing receipt, utility-bill, and
 wallet fields, validation mismatches, and low image quality. It does not use
-the LLM and does not alter the upload response.
+the LLM.
+
+After review hints, `ReviewResponseBuilder` reshapes the completed UFR and
+pipeline reports into the Android Review Screen response. It exposes generic
+editable fields for every document and document-specific fields for utility
+bills and wallet screenshots. It does not invoke parsers, validators, the LLM,
+or persistence. The legacy receipt-shaped fields remain embedded in the
+response so existing clients can continue reading them.
 
 ## Workflow conventions
 
