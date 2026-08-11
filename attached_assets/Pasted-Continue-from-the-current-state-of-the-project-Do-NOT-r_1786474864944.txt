@@ -1,0 +1,82 @@
+Continue from the current state of the project. Do NOT restart, redesign, or reimplement the Review Response Builder.
+
+The previous implementation already:
+- added the typed frontend Review Response schema
+- added the Review Response Builder
+- integrated it into the existing processing pipeline
+- preserved the legacy status, quality, validation, and receipt fields for backward compatibility
+- compiled successfully
+
+The previous agent was interrupted during final verification because the free quota was exhausted.
+
+Your job now is ONLY to finish verification and fix any issues you discover.
+
+IMPORTANT PROJECT RULES:
+1. Inspect the existing implementation first.
+2. Preserve all working functionality.
+3. Do not rewrite the parser architecture.
+4. Do not rewrite the UFR.
+5. Do not change the OpenAI integration.
+6. Do not change the database architecture.
+7. Do not introduce unnecessary dependencies.
+8. Do not change API contracts unnecessarily.
+9. Maintain backward compatibility.
+10. Make the smallest changes necessary.
+11. Run tests/checks after changes.
+12. Fix errors before reporting completion.
+
+TASK:
+
+A. Inspect the current Review Response Builder implementation.
+
+B. Inspect the registered FastAPI routes and verify the actual upload route path rather than assuming the route name/path.
+
+C. Run the relevant response-builder and pipeline tests.
+
+D. Verify the response for all three supported document types:
+   1. receipt
+   2. utility_bill
+   3. wallet_screenshot
+
+E. Confirm the new response contains the frontend review information required by the Android Review Screen, including:
+   - document type
+   - extracted fields
+   - editable field information
+   - items where applicable
+   - validation warnings
+   - review hints
+   - confidence information
+   - processing metadata where supported
+
+F. Confirm backward compatibility:
+   The existing response fields must remain available:
+   - status
+   - quality
+   - validation
+   - receipt
+
+G. Verify existing behavior:
+   - valid receipt -> HTTP 200
+   - valid utility bill -> HTTP 200
+   - valid wallet screenshot -> HTTP 200
+   - blurry image rejection remains unchanged
+   - dark/poor-quality image rejection remains unchanged
+   - unsupported document behavior remains unchanged
+   - existing UFR generation remains functional
+
+H. If a test or route assertion is incorrect because it assumes the wrong route, fix the TEST/verification logic rather than changing the API route unnecessarily.
+
+I. Do not implement Supabase persistence yet.
+I. Do not implement the Human Review save endpoint yet.
+I. Do not build the Android UI yet.
+
+Before finishing, provide:
+
+1. Exact files changed.
+2. Tests/checks executed.
+3. Results for receipt, utility_bill, and wallet_screenshot.
+4. Confirmation that backward compatibility is preserved.
+5. Any remaining issue, if one exists.
+6. Git commit hash/message if you create a commit.
+
+Do not report completion until the implementation and verification are actually successful.
