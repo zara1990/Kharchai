@@ -5,10 +5,11 @@ It helps users track expenses by analysing receipts and providing intelligent fi
 
 ---
 
-## Current Milestone: FastAPI Backend Foundation
+## Current Milestone: Supabase Foundation
 
-The backend uses **Python + FastAPI**. This milestone establishes a clean, minimal API skeleton.  
-Receipt AI and OpenAI integration are **not implemented yet**.
+The backend uses **Python + FastAPI** and now has a server-side Supabase
+foundation for the existing Universal Financial Record pipeline. The reviewed
+record save endpoint is intentionally deferred to a later milestone.
 
 ---
 
@@ -62,11 +63,24 @@ Once the backend is running, open:
 
 ---
 
+## Supabase configuration
+
+The backend requires these server-side environment values:
+
+```text
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+Never expose `SUPABASE_SERVICE_ROLE_KEY` to Android or API clients. Apply the
+initial database schema from
+[`supabase/migrations/20260811000000_create_financial_records.sql`](supabase/migrations/20260811000000_create_financial_records.sql).
+
 ## What is NOT implemented yet
 
 - Receipt image analysis
 - OpenAI / multimodal AI integration
-- Supabase / database
+- Reviewed-record save endpoint
 - Authentication
 - Android mobile application
 - Financial calculations / AI reasoning

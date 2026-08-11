@@ -4,3 +4,4 @@
 - [Confidence scoring](confidence-scoring.md) — deterministic confidence is calculated after UFR creation from quality, completeness, validation, and parser factors.
 - [Review hints](review-hints.md) — field-level deterministic review hints run after confidence and remain internal UFR metadata.
 - [FastAPI route verification](fastapi-route-verification.md) — included routers may be lazy; verify public routes through OpenAPI or live requests.
+- [Supabase foundation](supabase-foundation.md) — server-only REST client and separate UFR migration; live reachability does not imply schema applied.
