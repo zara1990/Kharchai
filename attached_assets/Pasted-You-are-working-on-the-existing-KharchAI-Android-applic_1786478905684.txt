@@ -1,0 +1,91 @@
+You are working on the existing KharchAI Android application.
+
+CURRENT BRANCH:
+feature/mobile-ui
+
+IMPORTANT:
+Another teammate is actively developing the backend on a separate branch.
+
+You are ONLY working on the Android/mobile application.
+
+DO NOT:
+- modify backend/
+- modify API contracts
+- modify database logic
+- modify AI logic
+- modify financial calculations
+- redesign navigation
+- install unnecessary dependencies
+- rewrite working screens
+- change the existing visual design unnecessarily
+
+FIRST:
+Inspect the existing mobile/app/ structure and the current ReviewScreen, UFR type, mock UFR, and document service.
+
+Then implement ONLY this milestone:
+
+# EDITABLE REVIEW SCREEN
+
+Goal:
+Allow the user to correct extracted financial information before saving.
+
+Make these UFR fields editable using React Native TextInput:
+
+1. Merchant
+2. Date
+3. Total
+
+For every item, allow editing:
+
+1. Item name
+2. Item amount
+
+Keep these fields read-only:
+
+- Document Type
+- Confidence
+- Review Hints
+
+Use React local state for editing.
+
+Do NOT move business logic into React Native.
+
+Do NOT perform financial calculations.
+
+SAVE BUTTON:
+
+When the user presses Save:
+
+1. Build the edited UFR from the current local state.
+2. Do NOT call the backend yet.
+3. Log the edited UFR with console.log().
+4. Show an Alert:
+   "Expense ready to save"
+
+IMPORTANT:
+The Save button must NOT actually persist anything yet.
+
+UI REQUIREMENTS:
+
+- Preserve the existing ReviewScreen layout.
+- Preserve the existing receipt image.
+- Preserve existing cards and sections.
+- Preserve existing colors and styling.
+- Preserve existing navigation.
+- Do not add new packages.
+- Keep the implementation simple and modular.
+
+QUALITY:
+
+After implementation:
+1. Run the relevant TypeScript/build checks.
+2. Fix any errors caused by your changes.
+3. Do not modify unrelated files.
+
+When finished, report:
+- Files changed
+- What was implemented
+- How to test the editable fields
+- Whether TypeScript/build checks passed
+
+Do not implement any other milestone.
