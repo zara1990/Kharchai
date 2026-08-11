@@ -8,10 +8,11 @@ import {
   Dimensions,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { UniversalFinancialRecord } from '../types/ufr';
+import { UFRItem, UniversalFinancialRecord } from '../types/ufr';
 import { uploadDocument } from '../services/documentService';
 import SectionTitle from '../components/review/SectionTitle';
 import DetailRow from '../components/review/DetailRow';
@@ -26,12 +27,22 @@ export default function ReviewScreen({ route }: Props) {
   const { imageUri, capturedImages } = route.params;
   const [ufr, setUfr] = useState<UniversalFinancialRecord | null>(null);
 
+  // Editable local state — initialized from UFR when it loads.
+  const [editedMerchant, setEditedMerchant] = useState('');
+  const [editedDate, setEditedDate] = useState('');
+  const [editedTotal, setEditedTotal] = useState('');
+  const [editedItems, setEditedItems] = useState<UFRItem[]>([]);
+
   useEffect(() => {
     let cancelled = false;
 
     uploadDocument(capturedImages).then((result) => {
       if (!cancelled) {
         setUfr(result);
+        setEditedMerchant(result.merchant);
+        setEditedDate(result.date);
+        setEditedTotal(result.total);
+        setEditedItems(result.items);
       }
     });
 
@@ -40,16 +51,36 @@ export default function ReviewScreen({ route }: Props) {
     };
   }, [capturedImages]);
 
-  const { documentType, merchant, date, total, items, confidence, reviewHints } =
-    ufr ?? {
-      documentType: '',
-      merchant: '',
-      date: '',
-      total: '',
-      items: [],
-      confidence: '',
-      reviewHints: [],
+  const updateItemName = (index: number, text: string) => {
+    setEditedItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, name: text } : item)),
+    );
+  };
+
+  const updateItemAmount = (index: number, text: string) => {
+    setEditedItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, amount: text } : item)),
+    );
+  };
+
+  const handleSave = () => {
+    const editedUFR: UniversalFinancialRecord = {
+      documentType: ufr?.documentType ?? '',
+      merchant: editedMerchant,
+      date: editedDate,
+      total: editedTotal,
+      items: editedItems,
+      confidence: ufr?.confidence ?? '',
+      reviewHints: ufr?.reviewHints ?? [],
     };
+    console.log('Edited UFR:', JSON.stringify(editedUFR, null, 2));
+    Alert.alert('Expense ready to save');
+  };
+
+  // Read-only values that are never edited.
+  const documentType = ufr?.documentType ?? '';
+  const confidence = ufr?.confidence ?? '';
+  const reviewHints = ufr?.reviewHints ?? [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -69,15 +100,36 @@ export default function ReviewScreen({ route }: Props) {
         <SectionTitle title="Document Details" />
         <View style={styles.card}>
           <DetailRow label="Document Type" value={documentType} />
-          <DetailRow label="Merchant" value={merchant} />
-          <DetailRow label="Date" value={date} />
-          <DetailRow label="Total" value={total} />
+          <DetailRow
+            label="Merchant"
+            value={editedMerchant}
+            editable
+            onChangeText={setEditedMerchant}
+          />
+          <DetailRow
+            label="Date"
+            value={editedDate}
+            editable
+            onChangeText={setEditedDate}
+          />
+          <DetailRow
+            label="Total"
+            value={editedTotal}
+            editable
+            onChangeText={setEditedTotal}
+          />
         </View>
 
         <SectionTitle title="Items" />
         <View style={styles.card}>
-          {items.map((item) => (
-            <ItemRow key={item.name} name={item.name} amount={item.amount} />
+          {editedItems.map((item, index) => (
+            <ItemRow
+              key={index}
+              name={item.name}
+              amount={item.amount}
+              onChangeName={(text) => updateItemName(index, text)}
+              onChangeAmount={(text) => updateItemAmount(index, text)}
+            />
           ))}
         </View>
 
@@ -95,7 +147,11 @@ export default function ReviewScreen({ route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.saveButton} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.saveButton}
+          activeOpacity={0.85}
+          onPress={handleSave}
+        >
           <Text style={styles.saveButtonText}>Save</Text>
         </TouchableOpacity>
       </View>

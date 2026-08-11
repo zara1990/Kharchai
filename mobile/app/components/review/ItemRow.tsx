@@ -1,17 +1,37 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 
 type Props = {
   name: string;
   amount: string;
+  onChangeName?: (text: string) => void;
+  onChangeAmount?: (text: string) => void;
 };
 
-export default function ItemRow({ name, amount }: Props) {
+export default function ItemRow({ name, amount, onChangeName, onChangeAmount }: Props) {
   return (
     <View style={styles.itemRow}>
-      <Text style={styles.itemName}>{name}</Text>
+      {onChangeName ? (
+        <TextInput
+          style={styles.itemNameInput}
+          value={name}
+          onChangeText={onChangeName}
+          underlineColorAndroid="transparent"
+        />
+      ) : (
+        <Text style={styles.itemName}>{name}</Text>
+      )}
       <View style={styles.itemDots} />
-      <Text style={styles.itemAmount}>{amount}</Text>
+      {onChangeAmount ? (
+        <TextInput
+          style={styles.itemAmountInput}
+          value={amount}
+          onChangeText={onChangeAmount}
+          underlineColorAndroid="transparent"
+        />
+      ) : (
+        <Text style={styles.itemAmount}>{amount}</Text>
+      )}
     </View>
   );
 }
@@ -28,6 +48,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1A1A2E',
   },
+  itemNameInput: {
+    fontSize: 14,
+    color: '#1A1A2E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1B5E3B',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    minWidth: 80,
+  },
   itemDots: {
     flex: 1,
     borderBottomWidth: 1,
@@ -40,5 +69,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1A1A2E',
+  },
+  itemAmountInput: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A2E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1B5E3B',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    minWidth: 70,
+    textAlign: 'right',
   },
 });

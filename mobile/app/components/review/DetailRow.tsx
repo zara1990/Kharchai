@@ -1,16 +1,27 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 
 type Props = {
   label: string;
   value: string;
+  editable?: boolean;
+  onChangeText?: (text: string) => void;
 };
 
-export default function DetailRow({ label, value }: Props) {
+export default function DetailRow({ label, value, editable = false, onChangeText }: Props) {
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+      {editable ? (
+        <TextInput
+          style={styles.detailInput}
+          value={value}
+          onChangeText={onChangeText}
+          underlineColorAndroid="transparent"
+        />
+      ) : (
+        <Text style={styles.detailValue}>{value}</Text>
+      )}
     </View>
   );
 }
@@ -35,5 +46,16 @@ const styles = StyleSheet.create({
     color: '#1A1A2E',
     flex: 1.2,
     textAlign: 'right',
+  },
+  detailInput: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A2E',
+    flex: 1.2,
+    textAlign: 'right',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1B5E3B',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
 });
