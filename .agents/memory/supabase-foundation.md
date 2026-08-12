@@ -11,6 +11,6 @@ separately from the checked-in SQL migration.
 persistence, while privileged credentials must never reach Android or clients.
 
 **How to apply:** Keep the client lazy and cached, use `financial_records` as
-the canonical UFR storage shape, and do not add save behavior until its
-dedicated milestone. Live API reachability does not mean the migration is
-applied.
+the canonical UFR storage shape, and save reviewed UFRs through the dedicated
+endpoint without overwriting duplicate IDs. Live API reachability does not
+mean the migration is applied.

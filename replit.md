@@ -14,7 +14,6 @@ KharchAI is an AI-powered Android financial copilot app built for Pakistan. It w
 - Do not build the entire application in one step.
 - Features NOT in scope until explicitly requested:
   - OpenAI / LLM integration
-  - Supabase / database
   - Authentication
   - Dashboard UI
   - Receipt AI / OCR

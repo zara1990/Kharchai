@@ -26,7 +26,7 @@ Android Expo App
 | OpenAI Multimodal AI | ✅ Implemented for current parsers |
 | Structured JSON response parsing | ✅ Implemented |
 | Validation layer | ✅ Implemented |
-| Supabase foundation | ✅ Client configuration and initial schema |
+| Supabase persistence | ✅ Reviewed UFR save endpoint |
 | Financial Calculations | Not implemented |
 | AI Financial Reasoning | Not implemented |
 
@@ -43,5 +43,5 @@ Android code or returned by an API. The initial UFR-oriented schema is located
 at
 `supabase/migrations/20260811000000_create_financial_records.sql`.
 
-The foundation is complete, but the reviewed-record save endpoint has not been
-implemented yet.
+The reviewed-record save endpoint accepts a validated UFR and inserts it into
+`public.financial_records` without overwriting an existing record ID.

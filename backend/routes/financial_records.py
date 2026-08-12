@@ -1,0 +1,77 @@
+"""API routes for saving user-approved financial records."""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from schemas.financial_record import FinancialRecordSaveResponse
+from schemas.ufr import UniversalFinancialRecord
+from services.financial_record_persistence import (
+    FinancialRecordPersistenceService,
+    FinancialRecordValidationError,
+)
+from services.supabase_client import (
+    SupabaseConfigurationError,
+    SupabaseConflictError,
+    SupabaseConnectionError,
+)
+
+router = APIRouter(
+    prefix="/api/v1/financial-records",
+    tags=["Financial Records"],
+)
+
+_persistence_service = FinancialRecordPersistenceService()
+
+
+def get_financial_record_persistence_service() -> FinancialRecordPersistenceService:
+    """Provide the persistence service and keep the Supabase client lazy."""
+    return _persistence_service
+
+
+@router.post(
+    "",
+    response_model=FinancialRecordSaveResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Save a user-approved financial record",
+    description=(
+        "Validates a reviewed UniversalFinancialRecord and inserts it into "
+        "Supabase. This endpoint does not upload images, invoke OpenAI, or "
+        "rerun document parsing."
+    ),
+)
+def save_financial_record(
+    record: UniversalFinancialRecord,
+    persistence_service: FinancialRecordPersistenceService = Depends(
+        get_financial_record_persistence_service
+    ),
+) -> FinancialRecordSaveResponse:
+    try:
+        persistence_service.save(record)
+    except FinancialRecordValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Invalid financial record",
+                "errors": exc.errors,
+            },
+        ) from exc
+    except SupabaseConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "Financial record already exists",
+                "record_id": record.record_id,
+            },
+        ) from exc
+    except (SupabaseConfigurationError, SupabaseConnectionError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "Financial record persistence is unavailable.",
+            },
+        ) from exc
+
+    return FinancialRecordSaveResponse(
+        saved=True,
+        record_id=record.record_id,
+        document_type=record.document_type,
+    )

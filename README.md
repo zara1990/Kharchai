@@ -5,11 +5,11 @@ It helps users track expenses by analysing receipts and providing intelligent fi
 
 ---
 
-## Current Milestone: Supabase Foundation
+## Current Milestone: Save Reviewed Financial Record
 
 The backend uses **Python + FastAPI** and now has a server-side Supabase
-foundation for the existing Universal Financial Record pipeline. The reviewed
-record save endpoint is intentionally deferred to a later milestone.
+foundation for the existing Universal Financial Record pipeline. Reviewed UFRs
+can now be validated and saved server-side without rerunning document parsing.
 
 ---
 
@@ -80,7 +80,6 @@ initial database schema from
 
 - Receipt image analysis
 - OpenAI / multimodal AI integration
-- Reviewed-record save endpoint
 - Authentication
 - Android mobile application
 - Financial calculations / AI reasoning

@@ -23,6 +23,10 @@ class SupabaseConnectionError(RuntimeError):
     """Raised when the Supabase REST API cannot be reached or authenticated."""
 
 
+class SupabaseConflictError(SupabaseConnectionError):
+    """Raised when Supabase rejects an insert because the record already exists."""
+
+
 @dataclass(frozen=True)
 class SupabaseVerificationResult:
     """Non-secret result of checking the configured Supabase REST endpoint."""
@@ -136,6 +140,10 @@ class SupabaseClient:
             response.raise_for_status()
             return response
         except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 409:
+                raise SupabaseConflictError(
+                    "Supabase rejected the insert because the record already exists."
+                ) from exc
             raise SupabaseConnectionError(
                 f"Supabase REST API returned HTTP {exc.response.status_code}."
             ) from exc
@@ -143,6 +151,14 @@ class SupabaseClient:
             raise SupabaseConnectionError(
                 f"Could not reach Supabase REST API: {exc.__class__.__name__}."
             ) from exc
+
+    def insert_financial_record(self, payload: dict[str, Any]) -> None:
+        """Insert one record without allowing an existing ID to be overwritten."""
+        self.request(
+            "POST",
+            "/rest/v1/financial_records",
+            json=payload,
+        )
 
     def close(self) -> None:
         """Release the underlying HTTP client."""
