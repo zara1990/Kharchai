@@ -1,0 +1,193 @@
+Continue KharchAI development with Milestone 7B — Save Reviewed Financial Record.
+
+IMPORTANT CONTEXT:
+
+Milestone 7A is complete.
+
+Supabase is now configured and the financial_records table has been successfully created manually from:
+
+supabase/migrations/20260811000000_create_financial_records.sql
+
+The Supabase SQL Editor returned:
+
+Success. No rows returned.
+
+The existing foundation commit is:
+
+ea7932e — Add Supabase persistence foundation
+
+The existing Review Response Builder milestone is also complete:
+
+1d11481 — Add Android review response builder
+
+Existing architecture must remain intact:
+
+Android
+→ POST /api/v1/receipt/upload
+→ document quality checks
+→ document classification
+→ parser
+→ UniversalFinancialRecord
+→ ReviewResponse
+→ Android user review/edit
+
+NOW implement ONLY the next vertical slice:
+
+ReviewResponse
+→ user-approved reviewed record
+→ save endpoint
+→ validate
+→ Supabase financial_records
+
+GOALS:
+
+1. Inspect the existing project first.
+
+2. Inspect:
+   - UniversalFinancialRecord
+   - ReviewResponse
+   - existing response builders
+   - receipt pipeline
+   - utility-bill pipeline
+   - wallet pipeline
+   - Supabase persistence foundation
+   - financial_records migration
+
+3. Do NOT rewrite existing architecture.
+
+4. Do NOT modify the existing upload endpoint contract.
+
+5. Do NOT modify the existing ReviewResponse contract unless absolutely necessary.
+
+6. Do NOT modify parsers.
+
+7. Do NOT modify Android code in this milestone.
+
+8. Add a dedicated save endpoint for an approved/reviewed financial record.
+
+Use the existing API versioning convention.
+
+Prefer:
+
+POST /api/v1/financial-records
+
+unless the existing project conventions clearly require another path.
+
+The endpoint should accept the reviewed/approved canonical financial record, not the raw uploaded image.
+
+IMPORTANT:
+
+The save endpoint must NOT call OpenAI.
+
+The save endpoint must NOT re-run document parsing.
+
+The save endpoint must NOT trust client-calculated totals blindly.
+
+It should validate the submitted canonical record against the existing UFR/Pydantic schema.
+
+9. Persist the validated record into:
+
+public.financial_records
+
+Map the existing UFR fields to the database columns created by the migration:
+
+id
+document_type
+source
+transaction_date
+merchant_provider
+amount
+currency
+category
+payment_method
+items
+metadata
+confidence
+parser_version
+
+Do not invent new database columns.
+
+10. Use the existing Supabase service-role configuration already present in environment variables.
+
+Never expose Supabase credentials to Android.
+
+Never hardcode secrets.
+
+11. Handle duplicate record IDs safely.
+
+Do not silently overwrite an existing financial record.
+
+Use the existing project conventions for conflict/error responses. If no convention exists, return a clear HTTP 409 conflict.
+
+12. Return a small deterministic save response.
+
+The response should clearly indicate:
+- saved successfully
+- record ID
+- document type
+
+Do not return unnecessary database internals.
+
+13. Add tests for at least:
+
+A. Valid receipt UFR saves successfully.
+
+B. Valid utility-bill UFR saves successfully.
+
+C. Valid wallet-screenshot UFR saves successfully.
+
+D. Invalid/malformed UFR is rejected.
+
+E. Duplicate record ID is handled safely.
+
+F. Supabase/database failure produces a controlled API error.
+
+IMPORTANT:
+
+Tests must not corrupt production/demo data.
+
+Use an appropriate test strategy already present in the repository. Do not create destructive tests against the production database.
+
+14. Verify:
+- backend starts
+- /health returns HTTP 200
+- existing POST /api/v1/receipt/upload still works
+- existing ReviewResponse remains unchanged
+- all existing tests still pass
+- new save tests pass
+- git diff --check passes
+
+15. Do NOT implement:
+- dashboard
+- analytics
+- AI financial insights
+- Ask My Money
+- authentication
+- user accounts
+- transaction history UI
+- Android save integration
+
+Those are later milestones.
+
+16. Commit the completed milestone.
+
+Use a clear commit message such as:
+
+Add reviewed financial record save endpoint
+
+FINAL REPORT MUST INCLUDE:
+
+- endpoint created
+- request schema
+- response schema
+- UFR → Supabase mapping
+- validation behavior
+- duplicate handling
+- tests performed
+- existing functionality verified
+- files changed
+- commit hash
+- exact endpoint and example request shape
+- any limitations or follow-up work
+
+STOP after completing and verifying Milestone 7B.
