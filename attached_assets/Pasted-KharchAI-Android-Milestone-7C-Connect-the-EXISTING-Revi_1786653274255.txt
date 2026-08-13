@@ -1,0 +1,295 @@
+KharchAI — Android Milestone 7C
+Connect the EXISTING Review Screen Save button to the EXISTING FastAPI persistence endpoint.
+
+IMPORTANT:
+This is an Android-only task.
+
+DO NOT modify:
+- backend/
+- FastAPI
+- Supabase
+- database schema
+- OpenAI
+- backend prompts
+- backend validation
+- backend calculations
+
+The backend save endpoint already exists:
+
+POST /api/v1/financial-records
+
+Success:
+HTTP 201
+
+Response:
+{
+  "saved": true,
+  "record_id": "string",
+  "document_type": "string"
+}
+
+==================================================
+FIRST: INSPECT THE PROJECT
+==================================================
+
+Before changing anything, inspect the existing mobile project.
+
+Find:
+1. ReviewResponse type/model
+2. ReviewScreen
+3. Existing Save button
+4. Existing upload/API client
+5. Existing API base URL configuration
+6. Existing navigation after save
+7. Existing loading/error UI patterns
+8. Existing processing response/state
+
+Preserve the existing architecture and UI.
+
+Do NOT rewrite the Review Screen.
+
+Do NOT create a new networking architecture.
+
+Do NOT install a networking library unless absolutely necessary.
+
+Reuse the existing API client/configuration.
+
+==================================================
+SAVE REQUEST
+==================================================
+
+POST:
+
+/api/v1/financial-records
+
+The request must be a canonical UFR-shaped payload:
+
+{
+  "record_id": "string",
+  "document_type": "string",
+  "merchant": "string or null",
+  "document_date": "string or null",
+  "currency": "string or null",
+  "total_amount": "number or null",
+  "payment_method": "string or null",
+  "category": "string or null",
+  "items": [],
+  "metadata": {
+    "source": "string",
+    "confidence": "number or null",
+    "confidence_level": "string or null",
+    "review_required": "boolean or null",
+    "review_hints": [],
+    "quality_score": "integer or null",
+    "parser_version": "string"
+  }
+}
+
+==================================================
+REVIEW RESPONSE → SAVE PAYLOAD
+==================================================
+
+Use the existing ReviewResponse/state.
+
+Map:
+
+document_type
+→ document_type
+
+editable_fields["merchant"].value
+→ merchant
+
+editable_fields["purchase_date"].value
+→ document_date
+
+editable_fields["currency"].value
+→ currency
+
+editable_fields["total_amount"].value
+→ total_amount
+
+extracted_items
+→ items
+
+For each item preserve the existing values:
+
+description
+amount
+quantity
+unit_price
+category
+metadata
+
+Map processing metadata:
+
+processing_metadata.source
+→ metadata.source
+
+processing_metadata.parser_version
+→ metadata.parser_version
+
+overall_confidence
+→ metadata.confidence
+
+processing_metadata.confidence_level
+→ metadata.confidence_level
+
+processing_metadata.review_required
+→ metadata.review_required
+
+review_hints
+→ metadata.review_hints
+
+processing_metadata.quality_score
+→ metadata.quality_score
+
+payment_method:
+Use null unless it already exists in the current Android state.
+
+top-level category:
+Use null unless it already exists in the current Android state.
+
+Do not invent values.
+
+Preserve utility-bill and wallet-specific metadata already present in the ReviewResponse.
+
+==================================================
+RECORD ID
+==================================================
+
+The save request requires record_id.
+
+Inspect the existing ReviewResponse first.
+
+If it already contains a stable backend record ID, reuse it.
+
+Otherwise generate one stable UUID when entering the review/save lifecycle.
+
+Do NOT generate a new ID on every Save tap.
+
+If Save fails and the user retries, reuse the same ID.
+
+Do not use timestamps as record IDs.
+
+If the project already has a UUID dependency/util, reuse it rather than adding another dependency.
+
+==================================================
+SAVE BEHAVIOR
+==================================================
+
+Replace the current temporary/mock Save behavior.
+
+When Save is pressed:
+
+1. Construct the UFR-shaped payload.
+2. Show saving/loading state.
+3. Disable the Save button while saving.
+4. POST to /api/v1/financial-records.
+5. On HTTP 201:
+   - show a clear success confirmation
+   - prevent accidental duplicate submission
+   - preserve the existing navigation pattern if one already exists
+
+Handle:
+
+HTTP 409:
+- Explain that the record was already saved.
+- Do not generate another record ID.
+- Do not create another record.
+
+HTTP 422:
+- Show a useful validation message.
+- Keep the user on Review.
+- Preserve all edits.
+
+HTTP 503:
+- Show that saving is temporarily unavailable.
+- Keep edits intact.
+- Allow retry.
+
+Network/offline/timeout:
+- Show a clear retry message.
+- Keep all review edits intact.
+
+==================================================
+SECURITY
+==================================================
+
+Android must communicate only with FastAPI.
+
+Never:
+- call Supabase directly
+- expose Supabase keys
+- expose OpenAI keys
+- send raw receipt images to the save endpoint
+- call OpenAI during Save
+- rerun receipt parsing during Save
+- discard user edits
+
+Reuse the existing API base URL configuration.
+
+Do not hardcode a new backend URL.
+
+==================================================
+SCOPE
+==================================================
+
+Implement ONLY:
+
+Existing Review Screen
+→ existing Save button
+→ FastAPI save endpoint
+→ success/error handling
+
+Do NOT implement:
+- Dashboard
+- History
+- Analytics
+- AI insights
+- Ask My Money
+- UI redesign
+- new backend functionality
+
+Preserve all existing working functionality.
+
+==================================================
+TESTING
+==================================================
+
+At minimum verify:
+
+1. Existing receipt flow still reaches Review.
+2. Existing Review editing still works.
+3. Save constructs the correct payload.
+4. Save button shows loading/disabled state.
+5. HTTP 201 is handled correctly.
+6. Network failure keeps the Review data intact.
+7. Save cannot be double-submitted.
+
+If the backend cannot be reached from the current development environment, DO NOT rewrite the networking architecture.
+
+Report the exact connectivity problem instead.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Before finishing:
+
+- Test the implementation.
+- Fix any errors you introduce.
+- Do not modify backend files.
+
+Report:
+1. Files changed
+2. API endpoint used
+3. ReviewResponse → UFR mapping
+4. Record ID strategy
+5. Success/error handling
+6. Tests performed
+7. Any limitations
+8. Exact manual testing steps
+
+Create a clear Git commit for this Android milestone.
+
+Do not modify backend code.
