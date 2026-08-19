@@ -12,4 +12,8 @@ export interface UniversalFinancialRecord {
   confidence: string;
   reviewHints: string[];
   serviceCharge?: string;
+  taxAmount?: string;
+  deliveryCharge?: string;
+  discountAmount?: string;
+  subtotalAmount?: string;
 }

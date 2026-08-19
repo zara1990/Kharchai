@@ -18,7 +18,10 @@ The JSON must follow this exact schema:
   "purchase_date": "<ISO-8601 date string or null>",
   "currency": "<3-letter currency code or null>",
   "subtotal_amount": <number or null>,
+  "tax_amount": <number or null>,
   "service_charge": <number or null>,
+  "delivery_charge": <number or null>,
+  "discount_amount": <number or null>,
   "grand_total_amount": <number or null>,
   "total_amount": <number or null>,
   "items": [
@@ -46,8 +49,9 @@ Rules:
 - Never substitute Rate for Amount. Never use Rate as total_price just because
   the Amount column is difficult to read. Never calculate total_price as
   unit_price multiplied by quantity; return null when Amount is unreadable.
-- Keep subtotal_amount, service_charge, and grand_total_amount separate.
-  Service charges are not line items.
+- Keep subtotal_amount, tax_amount, service_charge, delivery_charge,
+  discount_amount, and grand_total_amount separate.
+  Service charges, taxes, delivery charges, and discounts are not line items.
 - Set total_amount to the final payable amount printed as Grand Total, G.Total,
   Final Total, or an equivalent final-total label. It must match
   grand_total_amount when that field is present.
@@ -193,7 +197,10 @@ class ReceiptAnalysisService:
             purchase_date=data.get("purchase_date"),
             currency=data.get("currency"),
             subtotal_amount=data.get("subtotal_amount"),
+            tax_amount=data.get("tax_amount"),
             service_charge=data.get("service_charge"),
+            delivery_charge=data.get("delivery_charge"),
+            discount_amount=data.get("discount_amount"),
             grand_total_amount=grand_total_amount,
             total_amount=(
                 grand_total_amount

@@ -14,11 +14,33 @@ from services.supabase_client import (
 
 
 class FinancialRecordValidationError(ValueError):
-    """Raised when a reviewed UFR fails persistence-specific validation."""
+    """Raised when a reviewed UFR fails persistence-specific validation.
+
+    These are hard errors (schema problems, impossible values, missing required
+    fields) that cannot be overridden by the user.
+    """
 
     def __init__(self, errors: list[str]) -> None:
         self.errors = errors
         super().__init__("; ".join(errors))
+
+
+class FinancialRecordTotalMismatchWarning(ValueError):
+    """Raised when totals do not reconcile after accounting for all known charges.
+
+    This is a non-critical arithmetic warning.  The caller may retry with
+    ``confirm_total_mismatch=True`` in the record metadata to override.
+    The record is NOT persisted on the first attempt when this is raised.
+    """
+
+    MESSAGE = (
+        "The item amounts do not fully reconcile with the final total. "
+        "This may be caused by GST, service charges, discounts, rounding, "
+        "or an extraction issue."
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.MESSAGE)
 
 
 class FinancialRecordPersistenceService:
@@ -31,9 +53,24 @@ class FinancialRecordPersistenceService:
     def __init__(self, client: SupabaseClient | None = None) -> None:
         self._client = client
 
-    def save(self, record: UniversalFinancialRecord) -> None:
-        """Validate and insert a UFR, preserving duplicate-ID safety."""
+    def save(
+        self,
+        record: UniversalFinancialRecord,
+        *,
+        confirm_total_mismatch: bool = False,
+    ) -> None:
+        """Validate and insert a UFR, preserving duplicate-ID safety.
+
+        Raises:
+            FinancialRecordValidationError: Hard schema/data errors that cannot
+                be overridden.
+            FinancialRecordTotalMismatchWarning: Soft arithmetic mismatch.
+                Caller may retry with confirm_total_mismatch=True to persist
+                anyway; the record will be saved with review_required=True and
+                the warning appended to metadata.review_hints.
+        """
         self.validate(record)
+        self._check_total_reconciliation(record, confirm_total_mismatch)
         self.client.insert_financial_record(self.to_database_payload(record))
 
     @property
@@ -42,7 +79,12 @@ class FinancialRecordPersistenceService:
 
     @classmethod
     def validate(cls, record: UniversalFinancialRecord) -> None:
-        """Apply UFR, database, and reviewed-total consistency checks."""
+        """Apply hard UFR and database consistency checks.
+
+        Only raises FinancialRecordValidationError.  Total reconciliation is
+        handled separately in _check_total_reconciliation so that the caller
+        can choose to override a mismatch while hard errors remain blocking.
+        """
         errors: list[str] = []
 
         if not record.record_id.strip():
@@ -58,7 +100,10 @@ class FinancialRecordPersistenceService:
             ("total_amount", record.total_amount),
             ("confidence", record.metadata.confidence),
             ("metadata.subtotal_amount", record.metadata.subtotal_amount),
+            ("metadata.tax_amount", record.metadata.tax_amount),
             ("metadata.service_charge", record.metadata.service_charge),
+            ("metadata.delivery_charge", record.metadata.delivery_charge),
+            ("metadata.discount_amount", record.metadata.discount_amount),
             ("metadata.grand_total_amount", record.metadata.grand_total_amount),
         ]
         for index, item in enumerate(record.items):
@@ -78,37 +123,97 @@ class FinancialRecordPersistenceService:
         if confidence is not None and not 0 <= confidence <= 1:
             errors.append("metadata.confidence must be between 0 and 1.")
 
-        item_amounts = [item.amount for item in record.items]
-        if record.total_amount is not None and item_amounts and all(
-            amount is not None for amount in item_amounts
-        ):
-            calculated_total = sum(
-                (cls._decimal(amount) for amount in item_amounts if amount is not None),
-                Decimal("0"),
-            )
-            if record.metadata.subtotal_amount is not None:
-                subtotal_difference = abs(
-                    calculated_total
-                    - cls._decimal(record.metadata.subtotal_amount)
-                )
-                if subtotal_difference > cls.TOTAL_ROUNDING_TOLERANCE:
-                    errors.append(
-                        "subtotal_amount does not reconcile with the submitted item amounts."
-                    )
-            submitted_total = cls._decimal(record.total_amount)
-            expected_total = calculated_total + (
-                cls._decimal(record.metadata.service_charge)
-                if record.metadata.service_charge is not None
-                else Decimal("0")
-            )
-            difference = abs(expected_total - submitted_total)
-            if difference > cls.TOTAL_ROUNDING_TOLERANCE:
-                errors.append(
-                    "total_amount does not reconcile with the submitted item amounts."
-                )
+        # Negative charge/discount values are hard errors.
+        if record.metadata.tax_amount is not None and record.metadata.tax_amount < 0:
+            errors.append("metadata.tax_amount must not be negative.")
+        if record.metadata.service_charge is not None and record.metadata.service_charge < 0:
+            errors.append("metadata.service_charge must not be negative.")
+        if record.metadata.delivery_charge is not None and record.metadata.delivery_charge < 0:
+            errors.append("metadata.delivery_charge must not be negative.")
+        if record.metadata.discount_amount is not None and record.metadata.discount_amount < 0:
+            errors.append("metadata.discount_amount must not be negative.")
 
         if errors:
             raise FinancialRecordValidationError(errors)
+
+    @classmethod
+    def _check_total_reconciliation(
+        cls,
+        record: UniversalFinancialRecord,
+        confirm_total_mismatch: bool,
+    ) -> None:
+        """Check arithmetic reconciliation.
+
+        Reconciliation formula:
+            expected = (subtotal_amount if present, else sum of item amounts)
+                       + tax_amount
+                       + service_charge
+                       + delivery_charge
+                       - discount_amount
+
+        If the mismatch is within TOTAL_ROUNDING_TOLERANCE, it passes silently.
+        If it exceeds the tolerance AND confirm_total_mismatch is False, raises
+        FinancialRecordTotalMismatchWarning (non-blocking; caller may retry).
+        If it exceeds the tolerance AND confirm_total_mismatch is True, mutates
+        the record (review_required=True, warning in review_hints) and returns
+        normally so the caller can persist.
+        """
+        item_amounts = [item.amount for item in record.items]
+        if record.total_amount is None or not item_amounts:
+            return
+        if not all(amount is not None for amount in item_amounts):
+            # Some line amounts are null — skip reconciliation; the receipt
+            # validator will have already flagged these as errors.
+            return
+
+        calculated_item_sum = sum(
+            cls._decimal(amount) for amount in item_amounts if amount is not None
+        )
+
+        # Subtotal check: items should sum to the declared subtotal.
+        if record.metadata.subtotal_amount is not None:
+            subtotal_diff = abs(
+                calculated_item_sum - cls._decimal(record.metadata.subtotal_amount)
+            )
+            if subtotal_diff > cls.TOTAL_ROUNDING_TOLERANCE:
+                # Hard error: declared subtotal contradicts the items list.
+                raise FinancialRecordValidationError(
+                    ["subtotal_amount does not reconcile with the submitted item amounts."]
+                )
+
+        base = (
+            cls._decimal(record.metadata.subtotal_amount)
+            if record.metadata.subtotal_amount is not None
+            else calculated_item_sum
+        )
+
+        expected_total = (
+            base
+            + (cls._decimal(record.metadata.tax_amount) if record.metadata.tax_amount is not None else Decimal("0"))
+            + (cls._decimal(record.metadata.service_charge) if record.metadata.service_charge is not None else Decimal("0"))
+            + (cls._decimal(record.metadata.delivery_charge) if record.metadata.delivery_charge is not None else Decimal("0"))
+            - (cls._decimal(record.metadata.discount_amount) if record.metadata.discount_amount is not None else Decimal("0"))
+        )
+
+        submitted_total = cls._decimal(record.total_amount)
+        difference = abs(expected_total - submitted_total)
+
+        if difference <= cls.TOTAL_ROUNDING_TOLERANCE:
+            return
+
+        # Arithmetic mismatch beyond rounding tolerance.
+        if not confirm_total_mismatch:
+            raise FinancialRecordTotalMismatchWarning()
+
+        # User confirmed — mark the record for review and continue.
+        from schemas.ufr import ReviewHint  # local import avoids circularity
+        record.metadata.review_required = True
+        record.metadata.review_hints = list(record.metadata.review_hints) + [
+            ReviewHint(
+                field="total_amount",
+                message=FinancialRecordTotalMismatchWarning.MESSAGE,
+            )
+        ]
 
     @staticmethod
     def to_database_payload(record: UniversalFinancialRecord) -> dict[str, Any]:

@@ -28,7 +28,10 @@ class ReceiptAnalysisResponse(BaseModel):
     purchase_date: Optional[str] = None   # ISO-8601 date string where possible
     currency: Optional[str] = None        # e.g. "PKR", "USD"
     subtotal_amount: Optional[float] = None
+    tax_amount: Optional[float] = None      # GST or any tax line
     service_charge: Optional[float] = None
+    delivery_charge: Optional[float] = None
+    discount_amount: Optional[float] = None
     grand_total_amount: Optional[float] = None
     # Always the final payable amount. For receipts with service charges, this
     # is the printed grand/final total rather than the line-item subtotal.

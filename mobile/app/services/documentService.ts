@@ -61,11 +61,17 @@ function toUniversalFinancialRecord(
   const date =
     asText(fields.purchase_date?.value) || receipt?.purchase_date || '';
   const totalAmount = fields.total_amount?.value ?? receipt?.total_amount;
+
+  const meta = response.processing_metadata ?? {};
+
   const serviceCharge =
-    asNumber(response.processing_metadata?.service_charge) ??
-    receipt?.service_charge ??
-    null;
-  const confidenceLevel = asText(response.processing_metadata?.confidence_level);
+    asNumber(meta.service_charge) ?? receipt?.service_charge ?? null;
+  const taxAmount = asNumber(meta.tax_amount) ?? null;
+  const deliveryCharge = asNumber(meta.delivery_charge) ?? null;
+  const discountAmount = asNumber(meta.discount_amount) ?? null;
+  const subtotalAmount = asNumber(meta.subtotal_amount) ?? null;
+
+  const confidenceLevel = asText(meta.confidence_level);
   const hints = [
     ...(response.review_hints ?? []).map((hint) => hint.message),
     ...(response.validation_warnings ?? []),
@@ -84,9 +90,15 @@ function toUniversalFinancialRecord(
       amount: formatAmount(item.amount, currency),
     })),
     serviceCharge:
-      serviceCharge === null
-        ? undefined
-        : formatAmount(serviceCharge, currency),
+      serviceCharge === null ? undefined : formatAmount(serviceCharge, currency),
+    taxAmount:
+      taxAmount === null ? undefined : formatAmount(taxAmount, currency),
+    deliveryCharge:
+      deliveryCharge === null ? undefined : formatAmount(deliveryCharge, currency),
+    discountAmount:
+      discountAmount === null ? undefined : formatAmount(discountAmount, currency),
+    subtotalAmount:
+      subtotalAmount === null ? undefined : formatAmount(subtotalAmount, currency),
     confidence:
       confidenceLevel.toUpperCase() ||
       (response.overall_confidence === null ||
@@ -184,6 +196,11 @@ export interface UFRMetadataPayload {
   quality_score: number | null;
   parser_version: string;
   service_charge?: number | null;
+  tax_amount?: number | null;
+  delivery_charge?: number | null;
+  discount_amount?: number | null;
+  subtotal_amount?: number | null;
+  confirm_total_mismatch?: boolean;
 }
 
 export interface SaveRecordPayload {

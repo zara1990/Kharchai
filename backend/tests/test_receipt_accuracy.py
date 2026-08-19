@@ -171,7 +171,7 @@ class ReceiptAccuracyTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("map Qty to quantity", SYSTEM_PROMPT)
         self.assertIn("map Amount to total_price", SYSTEM_PROMPT)
         self.assertIn("Never substitute Rate for Amount", SYSTEM_PROMPT)
-        self.assertIn("Service charges are not line items", SYSTEM_PROMPT)
+        self.assertIn("Service charges, taxes, delivery charges, and discounts are not line items", SYSTEM_PROMPT)
 
     def test_validation_and_ufr_mapping_preserve_service_charge(self):
         analysis = ReceiptAnalysisResponse(

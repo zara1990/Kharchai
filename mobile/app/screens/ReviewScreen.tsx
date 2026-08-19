@@ -54,6 +54,7 @@ function buildSavePayload(
   editedTotal: string,
   editedItems: UFRItem[],
   ufr: UniversalFinancialRecord,
+  confirmTotalMismatch: boolean = false,
 ): SaveRecordPayload {
   return {
     record_id: recordId,
@@ -73,8 +74,6 @@ function buildSavePayload(
       metadata: {},
     })),
     metadata: {
-      // The mobile UFR does not carry structured processing_metadata yet;
-      // these defaults are used until real API integration replaces the mock.
       source: 'receipt_analysis',
       confidence: null,
       confidence_level: ufr.confidence || null,
@@ -86,6 +85,11 @@ function buildSavePayload(
       quality_score: null,
       parser_version: 'mobile-review-v1',
       service_charge: parseNumericAmount(ufr.serviceCharge ?? ''),
+      tax_amount: parseNumericAmount(ufr.taxAmount ?? ''),
+      delivery_charge: parseNumericAmount(ufr.deliveryCharge ?? ''),
+      discount_amount: parseNumericAmount(ufr.discountAmount ?? ''),
+      subtotal_amount: parseNumericAmount(ufr.subtotalAmount ?? ''),
+      confirm_total_mismatch: confirmTotalMismatch || undefined,
     },
   };
 }
@@ -130,7 +134,7 @@ export default function ReviewScreen({ route, navigation }: Props) {
     );
   };
 
-  const handleSave = async () => {
+  const doSave = async (confirmMismatch: boolean) => {
     if (isSaving || saved || !ufr || !recordId) return;
 
     const payload = buildSavePayload(
@@ -140,6 +144,7 @@ export default function ReviewScreen({ route, navigation }: Props) {
       editedTotal,
       editedItems,
       ufr,
+      confirmMismatch,
     );
 
     setIsSaving(true);
@@ -157,15 +162,48 @@ export default function ReviewScreen({ route, navigation }: Props) {
     } catch (error) {
       if (error instanceof SaveError) {
         if (error.status === 409) {
-          // Record already exists — treat as already saved.
-          setSaved(true);
-          Alert.alert(
-            'Already Saved',
-            'This record has already been saved. No duplicate was created.',
-            [{ text: 'OK', onPress: () => navigation.popToTop() }],
-          );
+          const body = error.body as {
+            detail?: { error?: string; message?: string; record_id?: string };
+          } | null;
+          const errorCode = body?.detail?.error;
+
+          if (errorCode === 'total_mismatch') {
+            // Non-critical arithmetic mismatch — ask the user to confirm.
+            Alert.alert(
+              "Amounts don't fully match",
+              "The item amounts do not fully reconcile with the final total. " +
+                "This may be caused by GST, service charges, discounts, rounding, " +
+                "or an extraction issue.",
+              [
+                {
+                  text: 'Review Amounts',
+                  style: 'cancel',
+                  // Dismiss dialog; user stays on Review Screen to edit.
+                },
+                {
+                  text: 'Save Anyway',
+                  style: 'destructive',
+                  onPress: () => doSave(true),
+                },
+              ],
+            );
+          } else if (errorCode === 'Financial record already exists') {
+            // Duplicate — treat as already saved.
+            setSaved(true);
+            Alert.alert(
+              'Already Saved',
+              'This record has already been saved. No duplicate was created.',
+              [{ text: 'OK', onPress: () => navigation.popToTop() }],
+            );
+          } else {
+            Alert.alert(
+              'Already Saved',
+              'This record has already been saved. No duplicate was created.',
+              [{ text: 'OK', onPress: () => navigation.popToTop() }],
+            );
+          }
         } else if (error.status === 422) {
-          // Validation error — keep the user on the review screen with edits intact.
+          // Hard validation error — keep the user on the review screen with edits intact.
           const body = error.body as { detail?: { errors?: string[] } } | null;
           const details =
             body?.detail?.errors?.join('\n') ??
@@ -195,10 +233,23 @@ export default function ReviewScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleSave = () => doSave(false);
+
   // Read-only values that are never edited.
   const documentType = ufr?.documentType ?? '';
   const confidence = ufr?.confidence ?? '';
   const reviewHints = ufr?.reviewHints ?? [];
+
+  // Charges summary — show only when at least one field is non-empty.
+  const hasCharges =
+    ufr &&
+    [
+      ufr.subtotalAmount,
+      ufr.taxAmount,
+      ufr.serviceCharge,
+      ufr.deliveryCharge,
+      ufr.discountAmount,
+    ].some((v) => v);
 
   const saveButtonDisabled = isSaving || saved || !ufr;
 
@@ -252,6 +303,31 @@ export default function ReviewScreen({ route, navigation }: Props) {
             />
           ))}
         </View>
+
+        {hasCharges && (
+          <>
+            <SectionTitle title="Charges & Total" />
+            <View style={styles.card}>
+              {ufr?.subtotalAmount ? (
+                <DetailRow label="Subtotal" value={ufr.subtotalAmount} />
+              ) : null}
+              {ufr?.taxAmount ? (
+                <DetailRow label="GST / Tax" value={ufr.taxAmount} />
+              ) : null}
+              {ufr?.serviceCharge ? (
+                <DetailRow label="Service Charge" value={ufr.serviceCharge} />
+              ) : null}
+              {ufr?.deliveryCharge ? (
+                <DetailRow label="Delivery Charge" value={ufr.deliveryCharge} />
+              ) : null}
+              {ufr?.discountAmount ? (
+                <DetailRow label="Discount" value={`− ${ufr.discountAmount}`} />
+              ) : null}
+              <View style={styles.totalDivider} />
+              <DetailRow label="Final Total" value={editedTotal} />
+            </View>
+          </>
+        )}
 
         <SectionTitle title="Confidence" />
         <View style={styles.confidenceBadge}>
@@ -321,6 +397,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E8EDF2',
+  },
+  totalDivider: {
+    height: 1,
+    backgroundColor: '#E8EDF2',
+    marginVertical: 8,
   },
   confidenceBadge: {
     alignSelf: 'flex-start',

@@ -40,9 +40,13 @@ class UniversalFinancialRecordMetadata(BaseModel):
     review_hints: List[ReviewHint] = Field(default_factory=list)
     quality_score: Optional[int] = None
     subtotal_amount: Optional[float] = None
+    tax_amount: Optional[float] = None
     service_charge: Optional[float] = None
+    delivery_charge: Optional[float] = None
+    discount_amount: Optional[float] = None
     grand_total_amount: Optional[float] = None
     parser_version: str
+    confirm_total_mismatch: Optional[bool] = None
 
 
 class UniversalFinancialRecord(BaseModel):

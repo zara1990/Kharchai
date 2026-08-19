@@ -56,7 +56,10 @@ class ReviewResponseBuilder:
                 else record.metadata.review_required
             ),
             "subtotal_amount": record.metadata.subtotal_amount,
+            "tax_amount": record.metadata.tax_amount,
             "service_charge": record.metadata.service_charge,
+            "delivery_charge": record.metadata.delivery_charge,
+            "discount_amount": record.metadata.discount_amount,
             "grand_total_amount": record.metadata.grand_total_amount,
         }
         metadata.update(processing_metadata or {})

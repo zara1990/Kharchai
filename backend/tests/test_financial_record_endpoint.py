@@ -42,6 +42,12 @@ def make_record(
     total_amount: float = 450.50,
     category: str = "groceries",
     items: list[UniversalFinancialRecordItem] | None = None,
+    service_charge: float | None = None,
+    tax_amount: float | None = None,
+    delivery_charge: float | None = None,
+    discount_amount: float | None = None,
+    subtotal_amount: float | None = None,
+    confirm_total_mismatch: bool | None = None,
 ) -> UniversalFinancialRecord:
     if items is None:
         items = [
@@ -77,6 +83,12 @@ def make_record(
             confidence_level="high",
             review_required=False,
             parser_version="test-parser-v1",
+            service_charge=service_charge,
+            tax_amount=tax_amount,
+            delivery_charge=delivery_charge,
+            discount_amount=discount_amount,
+            subtotal_amount=subtotal_amount,
+            confirm_total_mismatch=confirm_total_mismatch,
         ),
     )
 
@@ -102,9 +114,175 @@ class FinancialRecordEndpointTests(unittest.TestCase):
             json=record.model_dump(mode="json"),
         )
 
+    # ── TEST A — normal receipt ───────────────────────────────────────────────
+
+    def test_A_normal_receipt_saves_successfully(self):
+        """Items total = 1000, total_amount = 1000 → HTTP 201."""
+        record = make_record(
+            record_id="test-a",
+            total_amount=1000.0,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Item A", amount=600.0, category="groceries"
+                ),
+                UniversalFinancialRecordItem(
+                    description="Item B", amount=400.0, category="groceries"
+                ),
+            ],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["saved"], True)
+        self.assertEqual(len(self.client.payloads), 1)
+
+    # ── TEST B — service-charge receipt ──────────────────────────────────────
+
+    def test_B_service_charge_receipt_saves_successfully(self):
+        """items/subtotal = 7650, service_charge = 765, total = 8415 → HTTP 201."""
+        record = make_record(
+            record_id="test-b",
+            total_amount=8415.0,
+            service_charge=765.0,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Chicken Karahi",
+                    amount=5250.0,
+                    category="restaurant",
+                ),
+                UniversalFinancialRecordItem(
+                    description="Seekh Kebab",
+                    amount=1400.0,
+                    category="restaurant",
+                ),
+                UniversalFinancialRecordItem(
+                    description="Soft Drink",
+                    amount=1000.0,
+                    category="restaurant",
+                ),
+            ],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["record_id"], "test-b")
+        self.assertEqual(self.client.payloads[0]["amount"], 8415.0)
+        self.assertEqual(self.client.payloads[0]["metadata"]["service_charge"], 765.0)
+
+    # ── TEST C — GST receipt ──────────────────────────────────────────────────
+
+    def test_C_gst_receipt_saves_successfully(self):
+        """subtotal = 1000, tax = 150, total = 1150 → HTTP 201."""
+        record = make_record(
+            record_id="test-c",
+            total_amount=1150.0,
+            tax_amount=150.0,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Taxable item", amount=1000.0, category="food"
+                ),
+            ],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self.client.payloads[0]["metadata"]["tax_amount"], 150.0)
+
+    # ── TEST D — discount receipt ─────────────────────────────────────────────
+
+    def test_D_discount_receipt_saves_successfully(self):
+        """subtotal = 1000, discount = 100, total = 900 → HTTP 201."""
+        record = make_record(
+            record_id="test-d",
+            total_amount=900.0,
+            discount_amount=100.0,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Discounted item", amount=1000.0, category="food"
+                ),
+            ],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self.client.payloads[0]["metadata"]["discount_amount"], 100.0)
+
+    # ── TEST E — mismatch without confirmation ────────────────────────────────
+
+    def test_E_mismatch_without_confirmation_returns_total_mismatch(self):
+        """Totals don't reconcile → HTTP 409 total_mismatch, record NOT persisted."""
+        record = make_record(
+            record_id="test-e",
+            total_amount=9999.0,  # items sum to 450.50
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 409)
+        detail = response.json()["detail"]
+        self.assertEqual(detail["error"], "total_mismatch")
+        self.assertIn("confirm_key", detail)
+        self.assertEqual(detail["confirm_key"], "confirm_total_mismatch")
+        self.assertEqual(self.client.payloads, [])
+
+    # ── TEST F — mismatch with Save Anyway confirmation ───────────────────────
+
+    def test_F_mismatch_with_confirmation_saves_with_review_required(self):
+        """Same mismatch + confirm_total_mismatch=True → HTTP 201, review_required=True."""
+        record = make_record(
+            record_id="test-f",
+            total_amount=9999.0,
+            confirm_total_mismatch=True,
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+        payload = self.client.payloads[0]
+        self.assertEqual(payload["metadata"]["review_required"], True)
+        # Warning preserved in review_hints
+        hints = payload["metadata"]["review_hints"]
+        self.assertTrue(any("reconcile" in h["message"] for h in hints))
+
+    # ── TEST G — malformed payload ────────────────────────────────────────────
+
+    def test_G_malformed_payload_is_rejected(self):
+        """Missing required metadata → HTTP 422, no persist."""
+        response = self.http.post(
+            "/api/v1/financial-records",
+            json={
+                "record_id": "test-g",
+                "document_type": "receipt",
+                "items": [],
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.client.payloads, [])
+
+    # ── TEST H — wallet flow unchanged ───────────────────────────────────────
+
+    def test_H_wallet_screenshot_saves_successfully(self):
+        """Existing wallet behavior must remain passing."""
+        record = make_record(
+            record_id="test-h",
+            document_type="wallet_screenshot",
+            source="wallet_analysis",
+            merchant="Easypaisa",
+            total_amount=1200.0,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Money sent",
+                    amount=1200.0,
+                    category="wallet",
+                    metadata={
+                        "wallet_name": "Easypaisa",
+                        "transaction_type": "debit",
+                    },
+                )
+            ],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["document_type"], "wallet_screenshot")
+        self.assertEqual(self.client.payloads[0]["source"], "wallet_analysis")
+        self.assertEqual(self.client.payloads[0]["items"][0]["category"], "wallet")
+
+    # ── Existing passing tests preserved ─────────────────────────────────────
+
     def test_valid_receipt_ufr_saves_successfully(self):
         response = self.post_record(make_record())
-
         self.assertEqual(response.status_code, 201)
         self.assertEqual(
             response.json(),
@@ -123,6 +301,7 @@ class FinancialRecordEndpointTests(unittest.TestCase):
         record = make_record(
             record_id="service-charge-1",
             total_amount=8415.0,
+            service_charge=765.0,
             items=[
                 UniversalFinancialRecordItem(
                     description="Chicken Karahi",
@@ -147,10 +326,7 @@ class FinancialRecordEndpointTests(unittest.TestCase):
                 ),
             ],
         )
-        record.metadata.service_charge = 765.0
-
         response = self.post_record(record)
-
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["record_id"], "service-charge-1")
         self.assertEqual(self.client.payloads[0]["amount"], 8415.0)
@@ -173,40 +349,11 @@ class FinancialRecordEndpointTests(unittest.TestCase):
                 )
             ],
         )
-
         response = self.post_record(record)
-
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["document_type"], "utility_bill")
         self.assertEqual(self.client.payloads[0]["merchant_provider"], "K-Electric")
         self.assertEqual(self.client.payloads[0]["category"], "utilities")
-
-    def test_valid_wallet_screenshot_ufr_saves_successfully(self):
-        record = make_record(
-            record_id="wallet-1",
-            document_type="wallet_screenshot",
-            source="wallet_analysis",
-            merchant="Easypaisa",
-            total_amount=1200.0,
-            items=[
-                UniversalFinancialRecordItem(
-                    description="Money sent",
-                    amount=1200.0,
-                    category="wallet",
-                    metadata={
-                        "wallet_name": "Easypaisa",
-                        "transaction_type": "debit",
-                    },
-                )
-            ],
-        )
-
-        response = self.post_record(record)
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["document_type"], "wallet_screenshot")
-        self.assertEqual(self.client.payloads[0]["source"], "wallet_analysis")
-        self.assertEqual(self.client.payloads[0]["items"][0]["category"], "wallet")
 
     def test_invalid_malformed_ufr_is_rejected(self):
         response = self.http.post(
@@ -217,26 +364,14 @@ class FinancialRecordEndpointTests(unittest.TestCase):
                 "items": [],
             },
         )
-
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(self.client.payloads, [])
-
-    def test_inconsistent_reviewed_total_is_rejected(self):
-        record = make_record(total_amount=9999.0)
-
-        response = self.post_record(record)
-
-        self.assertEqual(response.status_code, 422)
-        self.assertIn("does not reconcile", response.json()["detail"]["errors"][0])
         self.assertEqual(self.client.payloads, [])
 
     def test_duplicate_record_id_is_handled_safely(self):
         self.client.error = SupabaseConflictError(
             "Supabase rejected the insert because the record already exists."
         )
-
         response = self.post_record(make_record(record_id="duplicate-1"))
-
         self.assertEqual(response.status_code, 409)
         self.assertEqual(
             response.json()["detail"],
@@ -248,9 +383,7 @@ class FinancialRecordEndpointTests(unittest.TestCase):
 
     def test_supabase_failure_produces_controlled_api_error(self):
         self.client.error = SupabaseConnectionError("simulated database failure")
-
         response = self.post_record(make_record(record_id="database-failure-1"))
-
         self.assertEqual(response.status_code, 503)
         self.assertEqual(
             response.json()["detail"],

@@ -6,6 +6,7 @@ from schemas.financial_record import FinancialRecordSaveResponse
 from schemas.ufr import UniversalFinancialRecord
 from services.financial_record_persistence import (
     FinancialRecordPersistenceService,
+    FinancialRecordTotalMismatchWarning,
     FinancialRecordValidationError,
 )
 from services.supabase_client import (
@@ -35,7 +36,11 @@ def get_financial_record_persistence_service() -> FinancialRecordPersistenceServ
     description=(
         "Validates a reviewed UniversalFinancialRecord and inserts it into "
         "Supabase. This endpoint does not upload images, invoke OpenAI, or "
-        "rerun document parsing."
+        "rerun document parsing.\n\n"
+        "When totals do not reconcile after accounting for all known charges, "
+        "returns HTTP 409 with error='total_mismatch'. The client may retry "
+        "with metadata.confirm_total_mismatch=true to persist the record with "
+        "review_required=True."
     ),
 )
 def save_financial_record(
@@ -44,8 +49,18 @@ def save_financial_record(
         get_financial_record_persistence_service
     ),
 ) -> FinancialRecordSaveResponse:
+    confirm = bool(record.metadata.confirm_total_mismatch)
     try:
-        persistence_service.save(record)
+        persistence_service.save(record, confirm_total_mismatch=confirm)
+    except FinancialRecordTotalMismatchWarning as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "total_mismatch",
+                "message": str(exc),
+                "confirm_key": "confirm_total_mismatch",
+            },
+        ) from exc
     except FinancialRecordValidationError as exc:
         raise HTTPException(
             status_code=422,
