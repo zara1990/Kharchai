@@ -1,0 +1,44 @@
+URGENT DEMO FIX — Save validation must account for service charges.
+
+We are on integration/mobile-backend.
+
+Current real receipt extraction is now correctly identifying:
+- item subtotal / grand total = 7650
+- service charge = 765
+- final payable total = 8415
+
+But POST /api/v1/financial-records rejects the reviewed record with:
+"total_amount does not reconcile with the submitted item amounts."
+
+Root cause:
+The persistence validation appears to compare:
+sum(items.amount) == total_amount
+
+That is incorrect for receipts containing service charges, tax, or discounts.
+
+Task:
+1. Inspect the current UFR schema, mobile save payload, financial_records request schema, persistence service, and deterministic reconciliation validation.
+2. Preserve total_amount as the FINAL payable total.
+3. Ensure service_charge from the processed UFR is preserved when building the mobile save payload, if the existing UFR supports it.
+4. Extend the save request schema only if necessary so service_charge reaches backend validation.
+5. Update deterministic reconciliation to use:
+   expected_total = item_amount_sum
+                  + service_charge
+                  + tax
+                  - discount
+   using 0 for optional missing values.
+6. Use a small currency tolerance only for rounding, not to hide real errors.
+7. Do not weaken validation.
+8. Do not change the working wallet flow.
+9. Do not change Supabase schema unless the existing persistence model absolutely requires it.
+10. If financial_records does not currently store service_charge separately, preserve it in existing metadata rather than creating a risky migration for the demo.
+11. Add a regression test:
+   items sum = 7650
+   service_charge = 765
+   total_amount = 8415
+   => valid and save succeeds.
+12. Ensure the existing inconsistent-total test still fails when arithmetic truly does not reconcile.
+13. Run the financial record endpoint tests and TypeScript checks.
+14. Report files changed and tests run.
+
+Make the smallest demo-safe fix.
