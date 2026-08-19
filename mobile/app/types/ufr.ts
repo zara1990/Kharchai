@@ -11,4 +11,5 @@ export interface UniversalFinancialRecord {
   items: UFRItem[];
   confidence: string;
   reviewHints: string[];
+  serviceCharge?: string;
 }

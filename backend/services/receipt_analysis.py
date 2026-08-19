@@ -17,13 +17,16 @@ The JSON must follow this exact schema:
   "merchant_name": "<string or null>",
   "purchase_date": "<ISO-8601 date string or null>",
   "currency": "<3-letter currency code or null>",
+  "subtotal_amount": <number or null>,
+  "service_charge": <number or null>,
+  "grand_total_amount": <number or null>,
   "total_amount": <number or null>,
   "items": [
     {
       "item_name": "<string>",
       "quantity": <number or null>,
       "unit_price": <number or null>,
-      "total_price": <number>,
+      "total_price": <number or null>,
       "category": "<best-guess category string>"
     }
   ]
@@ -32,8 +35,22 @@ The JSON must follow this exact schema:
 Rules:
 - Always return valid JSON.
 - Use null for any field you cannot determine.
+- Never calculate or infer a missing amount, quantity, subtotal, service charge,
+  grand total, or total. If it is unreadable, return null.
 - currency should be a 3-letter ISO code (e.g. PKR, USD, GBP).
 - purchase_date should be YYYY-MM-DD where possible.
+- For receipt tables with columns such as "Description | Rate | Qty | Amount":
+  - map Rate to unit_price;
+  - map Qty to quantity;
+  - map Amount to total_price, the line total.
+- Never substitute Rate for Amount. Never use Rate as total_price just because
+  the Amount column is difficult to read. Never calculate total_price as
+  unit_price multiplied by quantity; return null when Amount is unreadable.
+- Keep subtotal_amount, service_charge, and grand_total_amount separate.
+  Service charges are not line items.
+- Set total_amount to the final payable amount printed as Grand Total, G.Total,
+  Final Total, or an equivalent final-total label. It must match
+  grand_total_amount when that field is present.
 - Do not include any text outside the JSON object."""
 
 
@@ -158,12 +175,15 @@ class ReceiptAnalysisService:
                             item_name=str(entry.get("item_name", "Unknown")),
                             quantity=entry.get("quantity"),
                             unit_price=entry.get("unit_price"),
-                            total_price=float(entry.get("total_price") or 0),
+                            total_price=entry.get("total_price"),
                             category=str(entry.get("category", "Uncategorised")),
                         )
                     )
                 except Exception:
                     continue  # Skip malformed individual items
+
+        reported_total_amount = data.get("total_amount")
+        grand_total_amount = data.get("grand_total_amount")
 
         return ReceiptAnalysisResponse(
             **base_meta,
@@ -172,6 +192,14 @@ class ReceiptAnalysisService:
             merchant_name=data.get("merchant_name"),
             purchase_date=data.get("purchase_date"),
             currency=data.get("currency"),
-            total_amount=data.get("total_amount"),
+            subtotal_amount=data.get("subtotal_amount"),
+            service_charge=data.get("service_charge"),
+            grand_total_amount=grand_total_amount,
+            total_amount=(
+                grand_total_amount
+                if grand_total_amount is not None
+                else reported_total_amount
+            ),
+            reported_total_amount=reported_total_amount,
             items=items,
         )

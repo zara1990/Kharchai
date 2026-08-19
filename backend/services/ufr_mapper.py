@@ -79,6 +79,9 @@ class UniversalFinancialRecordMapper:
                 source=source,
                 confidence=confidence_value,
                 quality_score=quality_score,
+                subtotal_amount=analysis.subtotal_amount,
+                service_charge=analysis.service_charge,
+                grand_total_amount=analysis.grand_total_amount,
                 parser_version=parser_version,
             ),
         )

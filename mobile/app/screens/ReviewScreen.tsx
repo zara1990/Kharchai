@@ -85,6 +85,7 @@ function buildSavePayload(
       })),
       quality_score: null,
       parser_version: 'mobile-review-v1',
+      service_charge: parseNumericAmount(ufr.serviceCharge ?? ''),
     },
   };
 }

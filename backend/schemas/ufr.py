@@ -39,6 +39,9 @@ class UniversalFinancialRecordMetadata(BaseModel):
     review_required: Optional[bool] = None
     review_hints: List[ReviewHint] = Field(default_factory=list)
     quality_score: Optional[int] = None
+    subtotal_amount: Optional[float] = None
+    service_charge: Optional[float] = None
+    grand_total_amount: Optional[float] = None
     parser_version: str
 
 

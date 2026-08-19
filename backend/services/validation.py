@@ -61,6 +61,7 @@ class ReceiptValidationService:
         warnings: list[str] = []
         errors:   list[str] = []
         calculated_total: Optional[float] = None
+        subtotal_difference: Optional[float] = None
         difference:       Optional[float] = None
 
         # ── A. Merchant name ─────────────────────────────────────────────────
@@ -76,6 +77,15 @@ class ReceiptValidationService:
         # ── C. Total amount — hard error ─────────────────────────────────────
         if receipt_json.total_amount is None:
             errors.append("Total amount is missing from the receipt.")
+        elif (
+            receipt_json.reported_total_amount is not None
+            and receipt_json.grand_total_amount is not None
+            and receipt_json.reported_total_amount != receipt_json.grand_total_amount
+        ):
+            warnings.append(
+                "Reported total conflicts with the extracted grand total; "
+                "the grand total is used as the final payable amount."
+            )
 
         # ── D. Items list — hard error ───────────────────────────────────────
         if not receipt_json.items:
@@ -89,7 +99,11 @@ class ReceiptValidationService:
                 name_key = (item.item_name or "").strip().lower()
 
                 # E. Negative total / unit price ─────────────────────────────
-                if item.total_price < 0:
+                if item.total_price is None:
+                    errors.append(
+                        f"Line-item amount is missing for '{item.item_name}'."
+                    )
+                elif item.total_price < 0:
                     errors.append(
                         f"Negative total price for '{item.item_name}': {item.total_price}."
                     )
@@ -112,21 +126,58 @@ class ReceiptValidationService:
                 seen_names.add(name_key)
 
             # G. Total reconciliation ─────────────────────────────────────────
-            calculated_total = round(
-                sum(i.total_price for i in receipt_json.items), 2
-            )
-            if receipt_json.total_amount is not None:
-                raw_diff = abs(calculated_total - receipt_json.total_amount)
-                tolerance = max(
-                    TOTAL_FLAT_TOLERANCE,
-                    receipt_json.total_amount * TOTAL_PCT_TOLERANCE,
+            if all(item.total_price is not None for item in receipt_json.items):
+                calculated_total = round(
+                    sum(
+                        item.total_price
+                        for item in receipt_json.items
+                        if item.total_price is not None
+                    ),
+                    2,
                 )
-                difference = round(raw_diff, 2)
-                if raw_diff > tolerance:
-                    warnings.append(
-                        f"Calculated total ({calculated_total}) differs from extracted "
-                        f"total ({receipt_json.total_amount}) by {difference}."
+
+                if receipt_json.subtotal_amount is not None:
+                    raw_subtotal_diff = abs(
+                        calculated_total - receipt_json.subtotal_amount
                     )
+                    subtotal_tolerance = max(
+                        TOTAL_FLAT_TOLERANCE,
+                        abs(receipt_json.subtotal_amount) * TOTAL_PCT_TOLERANCE,
+                    )
+                    subtotal_difference = round(raw_subtotal_diff, 2)
+                    if raw_subtotal_diff > subtotal_tolerance:
+                        warnings.append(
+                            f"Calculated subtotal ({calculated_total}) differs from "
+                            f"extracted subtotal ({receipt_json.subtotal_amount}) by "
+                            f"{subtotal_difference}."
+                        )
+
+                if receipt_json.total_amount is not None:
+                    base_total = (
+                        receipt_json.subtotal_amount
+                        if receipt_json.subtotal_amount is not None
+                        else calculated_total
+                    )
+                    expected_final_total = base_total + (
+                        receipt_json.service_charge or 0
+                    )
+                    raw_diff = abs(expected_final_total - receipt_json.total_amount)
+                    tolerance = max(
+                        TOTAL_FLAT_TOLERANCE,
+                        abs(receipt_json.total_amount) * TOTAL_PCT_TOLERANCE,
+                    )
+                    difference = round(raw_diff, 2)
+                    if raw_diff > tolerance:
+                        warnings.append(
+                            f"Calculated final total ({expected_final_total}) differs "
+                            f"from extracted total ({receipt_json.total_amount}) by "
+                            f"{difference}."
+                        )
+
+        if receipt_json.service_charge is not None and receipt_json.service_charge < 0:
+            errors.append(
+                f"Negative service charge: {receipt_json.service_charge}."
+            )
 
         # ── I. Pakistani currency normalisation ──────────────────────────────
         if receipt_json.currency:
@@ -151,5 +202,7 @@ class ReceiptValidationService:
             warnings=warnings,
             errors=errors,
             calculated_total=calculated_total,
+            subtotal_difference=subtotal_difference,
+            service_charge=receipt_json.service_charge,
             difference=difference,
         )

@@ -9,7 +9,7 @@ class ReceiptItem(BaseModel):
     item_name: str
     quantity: Optional[float] = None
     unit_price: Optional[float] = None
-    total_price: float
+    total_price: Optional[float] = None
     category: str
 
 
@@ -27,7 +27,15 @@ class ReceiptAnalysisResponse(BaseModel):
     merchant_name: Optional[str] = None
     purchase_date: Optional[str] = None   # ISO-8601 date string where possible
     currency: Optional[str] = None        # e.g. "PKR", "USD"
+    subtotal_amount: Optional[float] = None
+    service_charge: Optional[float] = None
+    grand_total_amount: Optional[float] = None
+    # Always the final payable amount. For receipts with service charges, this
+    # is the printed grand/final total rather than the line-item subtotal.
     total_amount: Optional[float] = None
+    # Preserves the model's raw total_amount when grand_total_amount is used to
+    # deterministically select the final payable total.
+    reported_total_amount: Optional[float] = None
     items: Optional[List[ReceiptItem]] = None
 
 
@@ -48,7 +56,9 @@ class ReceiptValidationReport(BaseModel):
     warnings: List[str]
     errors: List[str]
     calculated_total: Optional[float] = None   # sum of line-item total_prices
-    difference: Optional[float] = None         # |calculated_total - total_amount|
+    subtotal_difference: Optional[float] = None
+    service_charge: Optional[float] = None
+    difference: Optional[float] = None         # final-total reconciliation difference
 
 
 # ── Top-level upload response ─────────────────────────────────────────────────

@@ -56,6 +56,9 @@ class FinancialRecordPersistenceService:
         numeric_values: list[tuple[str, float | None]] = [
             ("total_amount", record.total_amount),
             ("confidence", record.metadata.confidence),
+            ("metadata.subtotal_amount", record.metadata.subtotal_amount),
+            ("metadata.service_charge", record.metadata.service_charge),
+            ("metadata.grand_total_amount", record.metadata.grand_total_amount),
         ]
         for index, item in enumerate(record.items):
             numeric_values.extend(
@@ -82,8 +85,31 @@ class FinancialRecordPersistenceService:
                 (cls._decimal(amount) for amount in item_amounts if amount is not None),
                 Decimal("0"),
             )
+            if record.metadata.subtotal_amount is not None:
+                subtotal_difference = abs(
+                    calculated_total
+                    - cls._decimal(record.metadata.subtotal_amount)
+                )
+                subtotal_tolerance = max(
+                    cls.TOTAL_FLAT_TOLERANCE,
+                    abs(cls._decimal(record.metadata.subtotal_amount))
+                    * cls.TOTAL_PERCENT_TOLERANCE,
+                )
+                if subtotal_difference > subtotal_tolerance:
+                    errors.append(
+                        "subtotal_amount does not reconcile with the submitted item amounts."
+                    )
             submitted_total = cls._decimal(record.total_amount)
-            difference = abs(calculated_total - submitted_total)
+            expected_total = (
+                cls._decimal(record.metadata.subtotal_amount)
+                if record.metadata.subtotal_amount is not None
+                else calculated_total
+            ) + (
+                cls._decimal(record.metadata.service_charge)
+                if record.metadata.service_charge is not None
+                else Decimal("0")
+            )
+            difference = abs(expected_total - submitted_total)
             tolerance = max(
                 cls.TOTAL_FLAT_TOLERANCE,
                 abs(submitted_total) * cls.TOTAL_PERCENT_TOLERANCE,

@@ -55,6 +55,9 @@ class ReviewResponseBuilder:
                 if confidence_results is not None
                 else record.metadata.review_required
             ),
+            "subtotal_amount": record.metadata.subtotal_amount,
+            "service_charge": record.metadata.service_charge,
+            "grand_total_amount": record.metadata.grand_total_amount,
         }
         metadata.update(processing_metadata or {})
 

@@ -28,12 +28,17 @@ interface UploadReviewResponse {
     purchase_date?: string | null;
     currency?: string | null;
     total_amount?: number | null;
+    service_charge?: number | null;
   } | null;
 }
 
 function asText(value: unknown): string {
   if (value === null || value === undefined) return '';
   return String(value);
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function formatAmount(amount: number | null | undefined, currency: string): string {
@@ -56,6 +61,10 @@ function toUniversalFinancialRecord(
   const date =
     asText(fields.purchase_date?.value) || receipt?.purchase_date || '';
   const totalAmount = fields.total_amount?.value ?? receipt?.total_amount;
+  const serviceCharge =
+    asNumber(response.processing_metadata?.service_charge) ??
+    receipt?.service_charge ??
+    null;
   const confidenceLevel = asText(response.processing_metadata?.confidence_level);
   const hints = [
     ...(response.review_hints ?? []).map((hint) => hint.message),
@@ -74,6 +83,10 @@ function toUniversalFinancialRecord(
       name: item.description,
       amount: formatAmount(item.amount, currency),
     })),
+    serviceCharge:
+      serviceCharge === null
+        ? undefined
+        : formatAmount(serviceCharge, currency),
     confidence:
       confidenceLevel.toUpperCase() ||
       (response.overall_confidence === null ||
@@ -170,6 +183,7 @@ export interface UFRMetadataPayload {
   review_hints: ReviewHintPayload[];
   quality_score: number | null;
   parser_version: string;
+  service_charge?: number | null;
 }
 
 export interface SaveRecordPayload {
