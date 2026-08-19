@@ -279,6 +279,97 @@ class FinancialRecordEndpointTests(unittest.TestCase):
         self.assertEqual(self.client.payloads[0]["source"], "wallet_analysis")
         self.assertEqual(self.client.payloads[0]["items"][0]["category"], "wallet")
 
+    # ── Subtotal-based reconciliation (empty / partial items) ────────────────
+
+    def test_empty_items_with_subtotal_mismatch_returns_total_mismatch(self):
+        """No items, subtotal declared, total does not reconcile → HTTP 409 total_mismatch."""
+        record = make_record(
+            record_id="test-empty-mismatch",
+            total_amount=9999.0,
+            subtotal_amount=1000.0,
+            items=[],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 409)
+        detail = response.json()["detail"]
+        self.assertEqual(detail["error"], "total_mismatch")
+        self.assertEqual(self.client.payloads, [])
+
+    def test_empty_items_with_subtotal_mismatch_confirmed_saves_with_review(self):
+        """Same record + confirm_total_mismatch=True → HTTP 201, review_required=True."""
+        record = make_record(
+            record_id="test-empty-mismatch-confirmed",
+            total_amount=9999.0,
+            subtotal_amount=1000.0,
+            confirm_total_mismatch=True,
+            items=[],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+        payload = self.client.payloads[0]
+        self.assertEqual(payload["metadata"]["review_required"], True)
+        hints = payload["metadata"]["review_hints"]
+        self.assertTrue(any("reconcile" in h["message"] for h in hints))
+
+    def test_partial_item_amounts_with_subtotal_mismatch_returns_total_mismatch(self):
+        """Partial item amounts, subtotal declared, total does not reconcile → HTTP 409."""
+        record = make_record(
+            record_id="test-partial-mismatch",
+            total_amount=9999.0,
+            subtotal_amount=1000.0,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Readable item", amount=600.0, category="food"
+                ),
+                UniversalFinancialRecordItem(
+                    description="Unreadable item", amount=None, category="food"
+                ),
+            ],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"]["error"], "total_mismatch")
+        self.assertEqual(self.client.payloads, [])
+
+    def test_partial_item_amounts_with_subtotal_mismatch_confirmed_saves(self):
+        """Same partial-item record + confirm=True → HTTP 201, review_required=True."""
+        record = make_record(
+            record_id="test-partial-mismatch-confirmed",
+            total_amount=9999.0,
+            subtotal_amount=1000.0,
+            confirm_total_mismatch=True,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Readable item", amount=600.0, category="food"
+                ),
+                UniversalFinancialRecordItem(
+                    description="Unreadable item", amount=None, category="food"
+                ),
+            ],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self.client.payloads[0]["metadata"]["review_required"], True)
+
+    def test_subtotal_based_reconciliation_passes_when_totals_match(self):
+        """subtotal + service_charge = total with partial items → HTTP 201 (no confirmation needed)."""
+        record = make_record(
+            record_id="test-subtotal-ok",
+            total_amount=1150.0,
+            subtotal_amount=1000.0,
+            tax_amount=150.0,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Readable item", amount=600.0, category="food"
+                ),
+                UniversalFinancialRecordItem(
+                    description="Unreadable item", amount=None, category="food"
+                ),
+            ],
+        )
+        response = self.post_record(record)
+        self.assertEqual(response.status_code, 201)
+
     # ── Existing passing tests preserved ─────────────────────────────────────
 
     def test_valid_receipt_ufr_saves_successfully(self):

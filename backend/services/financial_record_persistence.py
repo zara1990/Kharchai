@@ -145,48 +145,58 @@ class FinancialRecordPersistenceService:
         """Check arithmetic reconciliation.
 
         Reconciliation formula:
-            expected = (subtotal_amount if present, else sum of item amounts)
-                       + tax_amount
-                       + service_charge
-                       + delivery_charge
-                       - discount_amount
+            expected = base + tax + service_charge + delivery_charge − discount
 
-        If the mismatch is within TOTAL_ROUNDING_TOLERANCE, it passes silently.
+        where base is determined as follows:
+          1. If subtotal_amount is declared, use it (items may be incomplete).
+          2. Else if every item amount is present, use the item sum.
+          3. Otherwise there is no reliable base — skip reconciliation entirely.
+
+        Item-vs-subtotal consistency is only checked when every item amount is
+        available (partial extraction is normal; we never hard-fail on it).
+
+        If the mismatch is within TOTAL_ROUNDING_TOLERANCE it passes silently.
         If it exceeds the tolerance AND confirm_total_mismatch is False, raises
         FinancialRecordTotalMismatchWarning (non-blocking; caller may retry).
         If it exceeds the tolerance AND confirm_total_mismatch is True, mutates
         the record (review_required=True, warning in review_hints) and returns
         normally so the caller can persist.
         """
+        if record.total_amount is None:
+            return
+
         item_amounts = [item.amount for item in record.items]
-        if record.total_amount is None or not item_amounts:
-            return
-        if not all(amount is not None for amount in item_amounts):
-            # Some line amounts are null — skip reconciliation; the receipt
-            # validator will have already flagged these as errors.
-            return
-
-        calculated_item_sum = sum(
-            cls._decimal(amount) for amount in item_amounts if amount is not None
+        all_items_present = bool(item_amounts) and all(
+            a is not None for a in item_amounts
         )
 
-        # Subtotal check: items should sum to the declared subtotal.
+        # ── Determine the base amount ─────────────────────────────────────────
         if record.metadata.subtotal_amount is not None:
-            subtotal_diff = abs(
-                calculated_item_sum - cls._decimal(record.metadata.subtotal_amount)
-            )
-            if subtotal_diff > cls.TOTAL_ROUNDING_TOLERANCE:
-                # Hard error: declared subtotal contradicts the items list.
-                raise FinancialRecordValidationError(
-                    ["subtotal_amount does not reconcile with the submitted item amounts."]
+            # Declared subtotal takes precedence — usable even with partial items.
+            base = cls._decimal(record.metadata.subtotal_amount)
+
+            # Only cross-check items vs subtotal when every amount is readable.
+            if all_items_present:
+                calculated_item_sum = sum(
+                    cls._decimal(a) for a in item_amounts if a is not None
                 )
+                subtotal_diff = abs(calculated_item_sum - base)
+                if subtotal_diff > cls.TOTAL_ROUNDING_TOLERANCE:
+                    raise FinancialRecordValidationError(
+                        ["subtotal_amount does not reconcile with the submitted item amounts."]
+                    )
 
-        base = (
-            cls._decimal(record.metadata.subtotal_amount)
-            if record.metadata.subtotal_amount is not None
-            else calculated_item_sum
-        )
+        elif all_items_present:
+            # No declared subtotal — derive base from the complete item list.
+            base = sum(
+                cls._decimal(a) for a in item_amounts if a is not None
+            )
 
+        else:
+            # Neither subtotal nor a complete item list — cannot reconcile.
+            return
+
+        # ── Final-total reconciliation ────────────────────────────────────────
         expected_total = (
             base
             + (cls._decimal(record.metadata.tax_amount) if record.metadata.tax_amount is not None else Decimal("0"))
