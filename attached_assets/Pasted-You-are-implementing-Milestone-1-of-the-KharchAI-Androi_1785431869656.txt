@@ -1,0 +1,202 @@
+You are implementing Milestone 1 of the KharchAI Android mobile application.
+
+IMPORTANT: Before making any changes, inspect the existing project structure, package.json, current dependencies, existing screens, navigation, and configuration. Do not assume the project is empty.
+
+PROJECT CONTEXT:
+KharchAI is an Android financial copilot for Pakistan. This task is ONLY the mobile foundation.
+
+Mobile stack:
+
+* React Native
+* Expo
+* TypeScript
+* Android
+
+I am the Mobile + UI/UX developer. The backend/AI developer is working separately on FastAPI, OpenAI, Supabase, financial logic, and API endpoints.
+
+CURRENT MILESTONE:
+Build only the Android application foundation:
+
+1. Expo React Native app launches successfully.
+2. Basic navigation works.
+3. Home screen exists.
+4. Add Expense screen exists.
+5. Camera screen exists as a PLACEHOLDER only.
+
+DO NOT implement:
+
+* OpenAI
+* FastAPI
+* Supabase
+* Receipt AI
+* OCR
+* Real camera capture
+* Image upload
+* Backend API calls
+* Authentication
+* Dashboard
+* Ask My Money
+* Financial calculations
+* AI features
+* Any future/stretch features
+
+Do not expand the scope beyond this milestone.
+
+NAVIGATION:
+
+Create a simple navigation flow:
+
+Home
+↓
+Add Expense
+↓
+Camera Placeholder
+
+The Home screen should provide a clear primary action such as:
+"Add Expense"
+
+Tapping it should navigate to Add Expense.
+
+The Add Expense screen should provide an obvious action such as:
+"Scan Receipt"
+
+Tapping it should navigate to the Camera placeholder screen.
+
+The Camera placeholder screen should clearly communicate that receipt scanning will be added in a later milestone. It should NOT request camera permissions or access the device camera yet.
+
+UI REQUIREMENTS:
+
+Create a simple but polished KharchAI foundation suitable for an Android financial application.
+
+Use:
+
+* Clean modern layout
+* Good spacing
+* Clear typography
+* Accessible touch targets
+* Consistent styling/theme
+* PKR/local Pakistan context where relevant
+* No excessive animations
+* No unnecessary visual complexity
+
+The Home screen can contain:
+
+* KharchAI title/logo text
+* Short value proposition
+* Primary "Add Expense" button
+* A simple empty-state message indicating that expenses will appear here later
+
+The Add Expense screen can contain:
+
+* Screen title
+* Short explanation
+* "Scan Receipt" primary action
+* A placeholder option for upload can be shown only if it does not require implementing image selection yet. Otherwise omit it.
+
+The Camera screen can contain:
+
+* Screen title: "Scan Receipt"
+* Placeholder illustration/container
+* Message explaining that camera scanning will be enabled in the next milestone
+* Back navigation
+
+ARCHITECTURE:
+
+Keep the code simple and organized for future expansion.
+
+If the existing project already has a reasonable structure, preserve it.
+
+If appropriate, use a structure similar to:
+
+mobile/
+app/
+components/
+screens/
+services/
+hooks/
+utils/
+
+But do NOT restructure the entire project unnecessarily.
+
+Keep navigation and screen code separated where practical.
+
+DEPENDENCIES:
+
+Use existing dependencies wherever possible.
+
+Do NOT install unnecessary packages.
+
+If navigation is not already configured, use a minimal Expo-compatible navigation solution appropriate for the existing project.
+
+Do not introduce a state-management library.
+
+Do not introduce any backend, AI, database, networking, or image-processing dependencies.
+
+SECRETS:
+
+There should be no API keys or secrets in this milestone.
+
+Never hardcode secrets.
+
+PRESERVE EXISTING FUNCTIONALITY:
+
+If the project already contains working functionality, preserve it.
+
+Do not overwrite or rewrite unrelated files.
+
+Only modify files required for this milestone.
+
+TESTING:
+
+After implementation:
+
+1. Run the appropriate project checks.
+2. Start the Expo development server.
+3. Verify the app launches.
+4. Verify Home loads.
+5. Verify Home → Add Expense navigation.
+6. Verify Add Expense → Camera navigation.
+7. Verify Camera → Back navigation.
+8. Check for TypeScript errors.
+9. Check for runtime errors.
+10. Fix any errors you encounter before reporting completion.
+
+ACCEPTANCE CRITERIA:
+
+The milestone is complete only when:
+
+* Expo app launches successfully.
+* Android app displays the Home screen.
+* Home → Add Expense works.
+* Add Expense → Camera placeholder works.
+* Camera → Back works.
+* No camera permission is requested yet.
+* No backend/API calls exist.
+* No OpenAI/Supabase functionality has been added.
+* No unrelated functionality has been broken.
+* No unnecessary dependencies have been introduced.
+* There are no obvious TypeScript or runtime errors.
+
+IMPORTANT VIBE-CODING RULES:
+
+* Inspect before modifying.
+* Preserve working functionality.
+* Do not rewrite the project unnecessarily.
+* Do not modify unrelated files.
+* Build only this milestone.
+* Do not add technologies because they seem useful.
+* Do not implement future features.
+* Test your work before declaring completion.
+
+WHEN FINISHED, REPORT:
+
+1. What you inspected.
+2. Files created/changed.
+3. Dependencies added, if any, and why.
+4. Navigation structure.
+5. How to run the app.
+6. Exact testing steps.
+7. Whether all acceptance criteria passed.
+8. Any remaining issue or warning.
+
+Do not continue to the next KharchAI milestone after completing this task.

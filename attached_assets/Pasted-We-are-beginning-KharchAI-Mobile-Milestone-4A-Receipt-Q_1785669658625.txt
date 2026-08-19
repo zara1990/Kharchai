@@ -1,0 +1,118 @@
+We are beginning KharchAI Mobile Milestone 4A: Receipt Quality Check Foundation.
+
+IMPORTANT:
+Inspect the existing mobile project before making any changes.
+
+The current working flow is:
+
+Home
+→ Add Expense
+→ Camera
+→ Capture
+→ Receipt Preview
+
+Preserve everything that currently works.
+
+For this milestone, add ONLY the first two local receipt-quality checks:
+
+1. BLUR DETECTION
+2. POOR LIGHTING DETECTION
+
+Do NOT implement the other quality checks yet.
+
+Requirements:
+
+1. After the user captures a receipt image, run local image-quality checks BEFORE showing the final receipt confirmation/preview flow.
+
+2. Blur detection:
+   - Estimate whether the captured image is sufficiently blurry that receipt extraction may fail.
+   - Use a lightweight client-side approach appropriate for React Native/Expo.
+   - Do not use OpenAI or any backend service.
+   - If the image appears too blurry, show:
+     "This photo looks blurry. Please retake it for better results."
+   - Provide two actions:
+       "Retake"
+       "Continue anyway"
+
+3. Poor-lighting detection:
+   - Estimate whether the captured image is too dark for reliable receipt extraction.
+   - Use a lightweight client-side approach appropriate for React Native/Expo.
+   - Do not use OpenAI or any backend service.
+   - If the image appears too dark, show:
+     "The receipt is difficult to read. Try taking the photo in better lighting."
+   - Provide:
+       "Retake"
+       "Continue anyway"
+
+4. If BOTH problems are detected:
+   - Show a clear combined warning.
+   - Do not create a confusing series of popups.
+   - The user should still be able to Retake or Continue anyway.
+
+5. If no quality problem is detected:
+   - Continue directly to the existing receipt preview flow.
+
+6. Retake:
+   - Return to the existing camera screen.
+   - Do not lose the receipt-capture navigation state.
+
+7. Continue anyway:
+   - Continue to the existing Receipt Preview screen.
+   - Do NOT upload anything.
+   - Do NOT call the backend.
+
+8. Keep the captured-receipt state compatible with the existing multiple-image architecture.
+   Do not redesign the existing capture state unnecessarily.
+
+9. Do NOT implement:
+   - glare detection
+   - receipt edge detection
+   - multiple-receipt detection
+   - long-receipt detection
+   - multi-photo capture UI
+   - image upload
+   - FastAPI calls
+   - OpenAI
+   - Supabase
+   - AI processing
+   - Review/Edit
+   - Dashboard
+
+10. Avoid unnecessary dependencies.
+    Prefer existing Expo-compatible capabilities and lightweight processing.
+
+11. Do not modify backend files.
+
+12. Do not hardcode secrets or API URLs.
+
+13. Keep the UI Android-friendly and simple.
+
+14. Important:
+    Do not make quality detection block the user permanently.
+    The user must always have a clear Retake or Continue anyway option when a warning is shown.
+
+15. Test the implementation on the existing Expo app.
+
+Test at minimum:
+- normal receipt image
+- deliberately blurry image
+- deliberately dark image
+- blurry + dark image if possible
+- Retake action
+- Continue anyway action
+- existing camera capture
+- existing receipt preview
+- Home → Add Expense → Camera navigation
+
+Check for TypeScript and runtime errors.
+
+Before finishing, report:
+- Files changed
+- Dependencies added
+- How blur detection works
+- How lighting detection works
+- What thresholds/logic are being used
+- Test results
+- Any warnings/errors
+
+Do NOT proceed to Milestone 4B or implement any other quality checks.

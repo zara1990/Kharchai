@@ -1,0 +1,300 @@
+Milestone 7A — Supabase Foundation for KharchAI
+
+We are continuing from the CURRENT working project state.
+
+IMPORTANT:
+The Review Response Builder milestone is COMPLETE and VERIFIED.
+
+Last confirmed commit:
+1d11481 — Add Android review response builder
+
+Current verified processing flow:
+
+Image Upload
+→ Image Quality Check
+→ Document Classification
+→ Document Parser
+→ Universal Financial Record (UFR)
+→ Validation
+→ Confidence
+→ Review Hints
+→ ReviewResponse
+
+Supported document types:
+- receipt
+- utility_bill
+- wallet_screenshot
+
+The existing upload endpoint is:
+POST /api/v1/receipt/upload
+
+The ReviewResponse currently supports:
+- editable fields
+- items where applicable
+- warnings
+- review hints
+- confidence
+- metadata
+
+Existing legacy response fields must remain compatible:
+- status
+- quality
+- validation
+- receipt
+
+==================================================
+OBJECTIVE
+==================================================
+
+Implement ONLY the Supabase foundation.
+
+We need a secure server-side connection between the existing FastAPI backend and Supabase/PostgreSQL.
+
+DO NOT implement the final save/review endpoint yet.
+
+DO NOT modify the existing upload response contract.
+
+DO NOT modify the ReviewResponse Builder.
+
+DO NOT modify parsers.
+
+DO NOT modify the UFR architecture.
+
+DO NOT modify OpenAI logic.
+
+DO NOT build the Android integration.
+
+DO NOT build the dashboard.
+
+DO NOT build Ask My Money.
+
+Those are later milestones.
+
+==================================================
+STEP 1 — INSPECT FIRST
+==================================================
+
+Before changing anything, inspect the existing repository for:
+
+- Supabase dependencies
+- supabase-py or equivalent
+- existing database modules
+- existing environment configuration
+- .env.example
+- environment variable loading
+- existing Supabase URLs or keys
+- existing SQL/migrations
+- existing database schemas
+- existing UFR models
+- project documentation referring to Supabase
+
+Do not assume Supabase is completely absent.
+
+If partial infrastructure already exists, reuse it rather than creating duplicate infrastructure.
+
+==================================================
+STEP 2 — ENVIRONMENT CONFIGURATION
+==================================================
+
+If Supabase configuration is missing, establish server-side environment variables for:
+
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+
+Use the existing configuration pattern if the project already has one.
+
+IMPORTANT SECURITY RULES:
+
+- Never hardcode Supabase credentials.
+- Never place Supabase credentials in Android code.
+- Never expose the service-role key through an API response.
+- Never commit real secrets.
+- Update .env.example with placeholder variable names only.
+- If credentials are required to run verification but are not available in the environment, do NOT invent them.
+
+The backend must be the only component communicating with Supabase using privileged credentials.
+
+==================================================
+STEP 3 — SUPABASE CLIENT
+==================================================
+
+Create or reuse a small backend Supabase client/service module.
+
+Requirements:
+
+- initialize the client from environment variables
+- fail clearly if required configuration is missing
+- avoid creating the client repeatedly inside every route
+- keep the implementation simple
+- do not introduce unnecessary abstraction layers
+
+Follow the existing project architecture if an equivalent service/configuration pattern already exists.
+
+==================================================
+STEP 4 — INITIAL DATABASE SCHEMA
+==================================================
+
+Create the minimum database schema needed for the NEXT milestone:
+
+A financial_records table.
+
+The schema should be designed around the existing Universal Financial Record rather than around receipt-specific fields.
+
+It must be capable of storing records from:
+
+- receipt
+- utility_bill
+- wallet_screenshot
+
+At minimum, establish fields for the normalized financial record identity and core financial information, while preserving document-specific information in a structured JSON/JSONB field where appropriate.
+
+The design should support:
+
+- record ID
+- document type
+- source
+- transaction date where applicable
+- merchant/provider where applicable
+- amount
+- currency
+- category where applicable
+- normalized items where applicable
+- metadata
+- confidence
+- parser version
+- created timestamp
+- updated timestamp
+
+Do NOT duplicate dozens of receipt-specific columns.
+
+The database should remain compatible with the UFR architecture.
+
+If the existing UFR has fields that should be persisted, inspect the actual implementation and map them appropriately.
+
+==================================================
+STEP 5 — MIGRATION / SCHEMA FILE
+==================================================
+
+Create a clear SQL migration/schema file that can be applied to Supabase.
+
+Do not require manual editing of generated SQL.
+
+Document:
+
+- table name
+- columns
+- data types
+- required fields
+- indexes if genuinely necessary
+- constraints if genuinely necessary
+
+Do not over-engineer database indexes at this stage.
+
+==================================================
+STEP 6 — CONNECTION VERIFICATION
+==================================================
+
+Add a minimal backend-level verification mechanism.
+
+Prefer a small internal service/helper test rather than changing the public upload API.
+
+Verify that:
+
+1. configuration loads correctly
+2. Supabase client initializes correctly
+3. the backend can reach Supabase when credentials are available
+
+If real Supabase credentials are not currently configured in the Replit environment:
+
+- do NOT create fake credentials
+- do NOT claim live connectivity
+- verify client initialization/configuration structurally
+- clearly report that live database connectivity remains pending environment configuration
+
+==================================================
+STEP 7 — TESTS
+==================================================
+
+Run the existing project tests first.
+
+Then add only the minimum tests necessary for this milestone.
+
+Verify:
+
+- existing receipt upload still works
+- utility-bill processing still works
+- wallet processing still works
+- ReviewResponse remains unchanged
+- existing validation behavior remains unchanged
+- Supabase configuration does not break startup
+- missing Supabase configuration produces a clear error rather than an obscure traceback
+
+Do NOT change the existing upload endpoint just to test Supabase.
+
+==================================================
+STEP 8 — DOCUMENTATION
+==================================================
+
+Update the existing project documentation only where necessary.
+
+Document:
+
+- Supabase is now a backend persistence dependency
+- required environment variables
+- location of the database schema/migration
+- security rule that service-role credentials remain server-side
+- current status: foundation complete, save endpoint NOT implemented yet
+
+Do not create unnecessary documentation files.
+
+==================================================
+IMPORTANT DEVELOPMENT RULES
+==================================================
+
+1. Inspect before modifying.
+2. Preserve all working functionality.
+3. Make the smallest possible change.
+4. Reuse existing architecture.
+5. Do not rewrite working code.
+6. Do not add unnecessary dependencies.
+7. Never hardcode secrets.
+8. Never expose secrets to Android.
+9. Do not implement future milestones.
+10. Run tests after implementation.
+11. Fix errors before reporting completion.
+12. Do not claim live Supabase connectivity unless it was actually verified.
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after the Supabase foundation is complete.
+
+Do NOT continue into:
+
+- reviewed-record save endpoint
+- Android review screen
+- dashboard
+- analytics
+- Ask My Money
+
+Those are separate milestones.
+
+==================================================
+FINAL REPORT
+==================================================
+
+When finished, report:
+
+1. Files changed
+2. Existing Supabase infrastructure found, if any
+3. New Supabase infrastructure added
+4. Database table/schema created
+5. Environment variables required
+6. Whether LIVE Supabase connectivity was actually verified
+7. Tests executed and results
+8. Confirmation that existing upload behavior is unchanged
+9. Confirmation that ReviewResponse is unchanged
+10. Git commit hash and commit message
+
+Keep the implementation minimal and competition-MVP focused.
