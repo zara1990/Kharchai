@@ -1,0 +1,42 @@
+We are on branch integration/mobile-backend.
+
+URGENT DEMO TASK. Inspect the existing code before changing anything.
+
+Goal:
+Replace the current mocked mobile document upload with the EXISTING FastAPI processing endpoint so the Android app can send a real receipt, wallet screenshot, or utility bill image and display the returned data in the existing Review Screen.
+
+Current facts:
+- Backend processing endpoint already exists:
+  POST /api/v1/receipt/upload
+- It accepts multipart/form-data with field name: file
+- backend/routes/receipt.py delegates processing to the existing generic financial pipeline.
+- Mobile currently has:
+  mobile/app/services/documentService.ts
+  uploadDocument(imageUris) -> return mockUFR
+- The existing Review Screen already expects UniversalFinancialRecord.
+- The existing save flow POST /api/v1/financial-records is WORKING and MUST NOT be changed.
+- Real FastAPI -> Supabase persistence has already returned HTTP 201 successfully.
+
+Instructions:
+1. Inspect backend/routes/receipt.py and all response schemas used by POST /api/v1/receipt/upload.
+2. Inspect mobile/app/types/ufr.ts and ReviewScreen.tsx.
+3. Modify ONLY the smallest mobile-side code necessary to replace mockUFR with a real API request.
+4. Use FormData and send the first selected/captured image as field name "file".
+5. Use the existing API_BASE_URL.
+6. Map the ACTUAL backend response into the existing mobile UniversalFinancialRecord shape.
+7. Support whatever document_type the backend returns, including receipt, wallet_screenshot, and utility_bill.
+8. Do not invent a new backend endpoint.
+9. Do not modify Supabase schema.
+10. Do not modify the financial-record save endpoint.
+11. Do not redesign the Review Screen.
+12. Preserve existing error handling.
+13. Do not add unnecessary dependencies.
+14. Run TypeScript/app checks that are already available.
+15. Report:
+   - files changed
+   - exact backend response shape discovered
+   - mapping performed
+   - tests/checks run
+   - any remaining blocker
+
+Demo stability is the priority. Make the smallest working integration.
