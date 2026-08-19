@@ -1,14 +1,149 @@
 import { UniversalFinancialRecord } from '../types/ufr';
-import { mockUFR } from '../mocks/mockUFR';
 import { API_BASE_URL } from '../config/api';
+
+interface EditableFieldResponse {
+  value?: unknown;
+}
+
+interface ReviewResponseItem {
+  description: string;
+  amount?: number | null;
+}
+
+interface ReviewHintResponse {
+  field: string;
+  message: string;
+}
+
+interface UploadReviewResponse {
+  document_type: string;
+  editable_fields: Record<string, EditableFieldResponse>;
+  extracted_items: ReviewResponseItem[];
+  validation_warnings: string[];
+  review_hints: ReviewHintResponse[];
+  overall_confidence: number | null;
+  processing_metadata: Record<string, unknown>;
+  receipt?: {
+    merchant_name?: string | null;
+    purchase_date?: string | null;
+    currency?: string | null;
+    total_amount?: number | null;
+  } | null;
+}
+
+function asText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value);
+}
+
+function formatAmount(amount: number | null | undefined, currency: string): string {
+  if (amount === null || amount === undefined) return '';
+  const formatted = amount.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  });
+  return currency ? `${currency} ${formatted}` : formatted;
+}
+
+function toUniversalFinancialRecord(
+  response: UploadReviewResponse,
+): UniversalFinancialRecord {
+  const fields = response.editable_fields ?? {};
+  const receipt = response.receipt;
+  const currency =
+    asText(fields.currency?.value) || receipt?.currency || '';
+  const merchant =
+    asText(fields.merchant?.value) || receipt?.merchant_name || '';
+  const date =
+    asText(fields.purchase_date?.value) || receipt?.purchase_date || '';
+  const totalAmount = fields.total_amount?.value ?? receipt?.total_amount;
+  const confidenceLevel = asText(response.processing_metadata?.confidence_level);
+  const hints = [
+    ...(response.review_hints ?? []).map((hint) => hint.message),
+    ...(response.validation_warnings ?? []),
+  ].filter((hint, index, all) => hint && all.indexOf(hint) === index);
+
+  return {
+    documentType: response.document_type,
+    merchant,
+    date,
+    total: formatAmount(
+      typeof totalAmount === 'number' ? totalAmount : null,
+      currency,
+    ),
+    items: (response.extracted_items ?? []).map((item) => ({
+      name: item.description,
+      amount: formatAmount(item.amount, currency),
+    })),
+    confidence:
+      confidenceLevel.toUpperCase() ||
+      (response.overall_confidence === null ||
+      response.overall_confidence === undefined
+        ? ''
+        : `${Math.round(response.overall_confidence * 100)}%`),
+    reviewHints: hints,
+  };
+}
+
+function getUploadFileName(uri: string): string {
+  const name = uri.split('/').pop()?.split('?')[0];
+  return name || 'document.jpg';
+}
+
+function getUploadMimeType(uri: string): string {
+  const extension = uri.split('?')[0].split('.').pop()?.toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    bmp: 'image/bmp',
+    tif: 'image/tiff',
+    tiff: 'image/tiff',
+  };
+  return (extension && mimeTypes[extension]) || 'image/jpeg';
+}
 
 export async function uploadDocument(
   imageUris: string[],
 ): Promise<UniversalFinancialRecord> {
-  // imageUris will be sent to the backend in a future milestone
-  void imageUris;
+  const imageUri = imageUris[0];
+  if (!imageUri) {
+    throw new Error('No document image was selected.');
+  }
 
-  return mockUFR;
+  const formData = new FormData();
+  formData.append(
+    'file',
+    {
+      uri: imageUri,
+      name: getUploadFileName(imageUri),
+      type: getUploadMimeType(imageUri),
+    } as unknown as Blob,
+  );
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/receipt/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+  } catch {
+    throw new Error('Could not reach the server. Check your connection and try again.');
+  }
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`Document processing failed (HTTP ${response.status}).`);
+  }
+
+  return toUniversalFinancialRecord(body as UploadReviewResponse);
 }
 
 // ── Save payload types ────────────────────────────────────────────────────────

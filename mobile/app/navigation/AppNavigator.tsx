@@ -6,6 +6,7 @@ import CameraScreen from '../screens/CameraScreen';
 import ReceiptPreviewScreen from '../screens/ReceiptPreviewScreen';
 import ProcessingScreen from '../screens/ProcessingScreen';
 import ReviewScreen from '../screens/ReviewScreen';
+import { UniversalFinancialRecord } from '../types/ufr';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -21,6 +22,7 @@ export type RootStackParamList = {
   Review: {
     imageUri: string;
     capturedImages: string[];
+    ufr: UniversalFinancialRecord;
   };
 };
 

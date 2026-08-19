@@ -15,7 +15,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { UFRItem, UniversalFinancialRecord } from '../types/ufr';
 import {
-  uploadDocument,
   saveFinancialRecord,
   SaveError,
   SaveRecordPayload,
@@ -93,7 +92,7 @@ function buildSavePayload(
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function ReviewScreen({ route, navigation }: Props) {
-  const { imageUri, capturedImages } = route.params;
+  const { imageUri, ufr: uploadedUfr } = route.params;
   const [ufr, setUfr] = useState<UniversalFinancialRecord | null>(null);
 
   // Editable local state — initialized from UFR when it loads.
@@ -109,24 +108,14 @@ export default function ReviewScreen({ route, navigation }: Props) {
   const [recordId, setRecordId] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    uploadDocument(capturedImages).then((result) => {
-      if (!cancelled) {
-        setUfr(result);
-        setEditedMerchant(result.merchant);
-        setEditedDate(result.date);
-        setEditedTotal(result.total);
-        setEditedItems(result.items);
-        // Generate the record ID once; it does not change across retries.
-        setRecordId(generateUUID());
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [capturedImages]);
+    setUfr(uploadedUfr);
+    setEditedMerchant(uploadedUfr.merchant);
+    setEditedDate(uploadedUfr.date);
+    setEditedTotal(uploadedUfr.total);
+    setEditedItems(uploadedUfr.items);
+    // Generate the record ID once; it does not change across save retries.
+    setRecordId(generateUUID());
+  }, [uploadedUfr]);
 
   const updateItemName = (index: number, text: string) => {
     setEditedItems((prev) =>

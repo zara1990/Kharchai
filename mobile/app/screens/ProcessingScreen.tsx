@@ -25,7 +25,7 @@ const MESSAGE_INTERVAL_MS = 1750;
 
 export default function ProcessingScreen({ navigation, route }: Props) {
   const { capturedImages } = route.params;
-  const imageUri = capturedImages[capturedImages.length - 1];
+  const imageUri = capturedImages[0];
 
   const [messageIndex, setMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +64,9 @@ export default function ProcessingScreen({ navigation, route }: Props) {
     let cancelled = false;
 
     uploadDocument(capturedImages)
-      .then(() => {
+      .then((ufr) => {
         if (cancelled || !mountedRef.current) return;
-        navigation.replace('Review', { imageUri, capturedImages });
+        navigation.replace('Review', { imageUri, capturedImages, ufr });
       })
       .catch(() => {
         if (cancelled || !mountedRef.current) return;
