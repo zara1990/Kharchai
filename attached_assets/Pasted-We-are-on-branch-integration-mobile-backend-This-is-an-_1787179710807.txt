@@ -1,0 +1,310 @@
+We are on branch:
+
+`integration/mobile-backend`
+
+This is an URGENT demo-stability task.
+
+Before changing anything, inspect the current implementation and preserve all working functionality.
+
+CURRENT WORKING STATE
+
+* Real mobile image upload to FastAPI works.
+* Receipt extraction works.
+* Wallet extraction works and has successfully saved records.
+* `POST /api/v1/financial-records` works.
+* Real FastAPI → Supabase persistence has returned HTTP 201 successfully.
+* Do NOT redesign these working flows.
+* Do NOT change Supabase schema unless absolutely unavoidable.
+* Do NOT weaken deterministic validation generally.
+
+There are TWO related problems to solve.
+
+# PROBLEM 1 — Receipt-level charges are not reliably preserved end-to-end
+
+Real Pakistani receipts may contain:
+
+* item subtotal
+* GST / tax
+* service charges
+* delivery charges
+* other additional charges
+* discounts
+* final payable total
+
+Example real receipt:
+
+Items/Subtotal: 7650
+Service Charge: 765
+Final Total: 8415
+
+The system must understand:
+
+`7650 + 765 = 8415`
+
+and must NOT expect:
+
+`7650 = 8415`
+
+Inspect the complete path:
+
+Receipt AI extraction
+→ parser response schema
+→ UFR
+→ ReviewResponse
+→ mobile UFR adapter
+→ ReviewScreen
+→ SaveRecordPayload
+→ POST `/api/v1/financial-records`
+→ deterministic validation
+→ persistence metadata / database
+
+Preserve these fields end-to-end wherever available:
+
+* `subtotal`
+* `tax`
+* `gst`
+* `service_charge`
+* `delivery_charge` or other existing additional-charge field if already supported
+* `discount`
+* `total_amount`
+
+Do not create duplicate concepts if the current schema already has equivalent fields.
+
+Important rules:
+
+* `total_amount` = FINAL payable total.
+* `subtotal` = amount before taxes/additional charges/discounts.
+* GST/tax must remain separate from item amounts.
+* service charge must remain separate from item amounts.
+* discounts must remain separate.
+* AI extracts financial values.
+* deterministic backend code performs reconciliation.
+* Do not ask AI to calculate missing financial values.
+* If AI cannot reliably read a field, preserve it as null rather than hallucinating.
+
+For arithmetic reconciliation, use the existing supported fields to calculate:
+
+`expected_total = subtotal/items_total + tax/GST + service_charge + other supported charges - discount`
+
+Use zero only for OPTIONAL fields that are absent.
+
+Use a small currency tolerance only for genuine rounding differences.
+
+If dedicated database columns do not exist for optional receipt charges, preserve them inside the existing metadata structure for the demo rather than performing a risky database migration.
+
+# PROBLEM 2 — Item-total mismatch must NOT permanently block saving
+
+Current undesirable behavior:
+
+items do not reconcile with total
+→ backend returns HTTP 422
+→ user cannot save
+
+This is too strict for real-world receipts.
+
+Legitimate causes include:
+
+* GST
+* service charges
+* delivery fees
+* discounts
+* rounding
+* tips
+* packaging fees
+* partial item extraction
+* AI misreading one line item while final total is clearly readable
+
+KharchAI must keep deterministic validation, but arithmetic mismatch should normally be a REVIEW WARNING rather than a permanent blocker.
+
+Desired UX:
+
+User presses Save
+→ backend detects non-critical arithmetic mismatch
+→ mobile shows confirmation dialog
+
+Title:
+
+`Amounts don't fully match`
+
+Message:
+
+`The item amounts do not fully reconcile with the final total. This may be caused by GST, service charges, discounts, rounding, or an extraction issue.`
+
+Buttons:
+
+`Review Amounts`
+
+* dismiss dialog
+* remain on Review Screen
+* allow user to edit values
+
+`Save Anyway`
+
+* user explicitly confirms
+* persist the record
+* mark it as requiring review / preserve warning metadata
+
+IMPLEMENTATION REQUIREMENTS
+
+1. Keep normal reconciled saves unchanged.
+
+Example:
+
+items/subtotal = 7650
+service_charge = 765
+total_amount = 8415
+
+Result:
+
+HTTP 201
+record saved normally
+
+2. If totals do NOT reconcile after including known charges:
+
+Do NOT permanently reject solely because of arithmetic mismatch.
+
+Instead, return a structured non-critical warning that the mobile app can identify.
+
+Use the smallest API change consistent with the existing code.
+
+A reasonable design is:
+
+First request:
+
+* mismatch detected
+* return structured warning indicating confirmation is needed
+* DO NOT persist yet
+
+Then user chooses Save Anyway:
+
+* mobile retries with an explicit flag such as:
+  `confirm_total_mismatch: true`
+* backend persists record
+* `review_required = true`
+* preserve warning code/message in existing metadata
+* return HTTP 201
+
+Use the existing request/metadata architecture if a better equivalent already exists.
+
+3. Critical errors MUST still block saving.
+
+Examples:
+
+* malformed JSON/schema
+* missing mandatory identity/document fields
+* invalid data types
+* impossible/unsupported negative amounts
+* malformed metadata
+* other genuinely invalid records
+
+Do not convert every validation failure into a warning.
+
+4. Preserve working document types.
+
+Do not break:
+
+* wallet screenshots
+* receipts
+* utility bills
+* existing upload flow
+* existing Supabase persistence
+* existing parser registry/UFR architecture
+
+5. Review Screen
+
+If charge fields are already available in the processed UFR, display them clearly where practical:
+
+Subtotal
+GST / Tax
+Service Charge
+Discount
+Final Total
+
+Do not redesign the whole Review Screen.
+
+Make the smallest useful UI addition.
+
+6. Tests
+
+Add or update regression tests for at least:
+
+TEST A — normal receipt
+
+items total = 1000
+total_amount = 1000
+→ HTTP 201
+
+TEST B — service-charge receipt
+
+items/subtotal = 7650
+service_charge = 765
+total_amount = 8415
+→ HTTP 201
+
+TEST C — GST receipt
+
+subtotal = 1000
+tax/GST = 150
+total_amount = 1150
+→ HTTP 201
+
+TEST D — discount receipt
+
+subtotal = 1000
+discount = 100
+total_amount = 900
+→ HTTP 201
+
+TEST E — genuine mismatch without confirmation
+
+items/charges do not reconcile
+→ non-critical confirmation warning
+→ record NOT persisted yet
+
+TEST F — same mismatch with Save Anyway confirmation
+
+→ HTTP 201
+→ record persisted
+→ review_required = true
+→ warning preserved in metadata
+
+TEST G — malformed payload
+
+→ still rejected
+
+TEST H — wallet flow
+
+→ existing behavior remains passing
+
+7. Run verification
+
+Run:
+
+* full backend unittest suite
+* receipt/parser tests if present
+* financial-record endpoint tests
+* mobile TypeScript check
+* Android Expo export/check if currently available
+* `git diff --check`
+
+Do not install unnecessary dependencies.
+
+Do not modify unrelated files.
+
+Do not perform broad refactors.
+
+Do not change branches.
+
+Do not merge to main.
+
+After implementation, report:
+
+1. exact files changed
+2. how GST/tax/service_charge/discount now travel through the system
+3. exact reconciliation formula implemented
+4. exact API behavior for mismatch warning
+5. exact Save Anyway behavior
+6. tests run and results
+7. any remaining demo limitation
+
+Priority: smallest safe fix that produces reliable demo behavior.
