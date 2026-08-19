@@ -1,0 +1,52 @@
+URGENT DEMO FIX — Receipt extraction accuracy.
+
+We are on integration/mobile-backend.
+
+Do not redesign the architecture.
+Do not change the working wallet flow.
+Do not weaken deterministic validation.
+Do not change Supabase schema unless absolutely required.
+Do not rewrite the Review Screen.
+
+Problem observed on a real Pakistani restaurant receipt:
+
+The receipt has columns:
+Description | Rate | Qty | Amount
+
+Current extraction is often mapping Rate into the line item's amount and is missing Qty.
+
+Example real receipt:
+- MUTTON KARAHI FULL: rate 2500, qty 1, amount 2500
+- SP BIRYANI: rate 700, qty 2, amount 1400
+- PER HEAD ROTI: rate 60, qty 5, amount 300
+- RAITA: rate 120, qty 5, amount 600
+- MINERAL WATER: rate 150, qty 1, amount 150
+- DESI MURGH KARAHI FULL: rate 2500, qty 1, amount 2500
+- 1.5 LTR DRINK: rate 200, qty 1, amount 200
+- Sub Total / Grand Total: 7650
+- Service Charges: 765
+- Final G.Total: 8415
+
+Current app incorrectly extracted final total as 4415 and several line item amounts as their unit rates.
+
+Task:
+1. Inspect the existing receipt parser prompt, response schema, UFR mapping and mobile adapter.
+2. Make the smallest change necessary so receipt table semantics are explicit:
+   - Rate -> unit_price
+   - Qty -> quantity
+   - Amount -> line total / item amount
+3. Explicitly instruct extraction not to substitute Rate for Amount.
+4. Extract subtotal/grand total separately from service charges.
+5. Map the final payable G.Total to UFR total_amount.
+6. Extract service_charge into the existing UFR financial field if supported by the current schema.
+7. Preserve deterministic arithmetic validation.
+8. Preserve wallet and utility parser behavior.
+9. Do not let AI calculate missing totals. If a field cannot be read, return null and let backend validation handle it.
+10. Add/update a receipt parser test using the values above so:
+    item amount sum = 7650
+    service_charge = 765
+    final total_amount = 8415
+11. Run existing backend tests and TypeScript checks.
+12. Report exact files changed and test results.
+
+Demo stability is the priority.
