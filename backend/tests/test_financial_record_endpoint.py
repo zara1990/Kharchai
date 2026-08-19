@@ -119,6 +119,43 @@ class FinancialRecordEndpointTests(unittest.TestCase):
         self.assertEqual(self.client.payloads[0]["amount"], 450.5)
         self.assertEqual(len(self.client.payloads[0]["items"]), 2)
 
+    def test_receipt_with_service_charge_saves_successfully(self):
+        record = make_record(
+            record_id="service-charge-1",
+            total_amount=8415.0,
+            items=[
+                UniversalFinancialRecordItem(
+                    description="Chicken Karahi",
+                    amount=5250.0,
+                    quantity=1,
+                    unit_price=5250.0,
+                    category="restaurant",
+                ),
+                UniversalFinancialRecordItem(
+                    description="Seekh Kebab",
+                    amount=1400.0,
+                    quantity=2,
+                    unit_price=700.0,
+                    category="restaurant",
+                ),
+                UniversalFinancialRecordItem(
+                    description="Soft Drink",
+                    amount=1000.0,
+                    quantity=2,
+                    unit_price=500.0,
+                    category="restaurant",
+                ),
+            ],
+        )
+        record.metadata.service_charge = 765.0
+
+        response = self.post_record(record)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["record_id"], "service-charge-1")
+        self.assertEqual(self.client.payloads[0]["amount"], 8415.0)
+        self.assertEqual(self.client.payloads[0]["metadata"]["service_charge"], 765.0)
+
     def test_valid_utility_bill_ufr_saves_successfully(self):
         record = make_record(
             record_id="utility-1",

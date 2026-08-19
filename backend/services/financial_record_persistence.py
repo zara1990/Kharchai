@@ -24,8 +24,9 @@ class FinancialRecordValidationError(ValueError):
 class FinancialRecordPersistenceService:
     """Validate and save a canonical UFR without invoking parsing or AI."""
 
-    TOTAL_FLAT_TOLERANCE = Decimal("1.00")
-    TOTAL_PERCENT_TOLERANCE = Decimal("0.02")
+    # Keep tolerance limited to two-decimal currency rounding. A percentage
+    # tolerance could allow a materially incorrect reviewed total to save.
+    TOTAL_ROUNDING_TOLERANCE = Decimal("0.01")
 
     def __init__(self, client: SupabaseClient | None = None) -> None:
         self._client = client
@@ -90,31 +91,18 @@ class FinancialRecordPersistenceService:
                     calculated_total
                     - cls._decimal(record.metadata.subtotal_amount)
                 )
-                subtotal_tolerance = max(
-                    cls.TOTAL_FLAT_TOLERANCE,
-                    abs(cls._decimal(record.metadata.subtotal_amount))
-                    * cls.TOTAL_PERCENT_TOLERANCE,
-                )
-                if subtotal_difference > subtotal_tolerance:
+                if subtotal_difference > cls.TOTAL_ROUNDING_TOLERANCE:
                     errors.append(
                         "subtotal_amount does not reconcile with the submitted item amounts."
                     )
             submitted_total = cls._decimal(record.total_amount)
-            expected_total = (
-                cls._decimal(record.metadata.subtotal_amount)
-                if record.metadata.subtotal_amount is not None
-                else calculated_total
-            ) + (
+            expected_total = calculated_total + (
                 cls._decimal(record.metadata.service_charge)
                 if record.metadata.service_charge is not None
                 else Decimal("0")
             )
             difference = abs(expected_total - submitted_total)
-            tolerance = max(
-                cls.TOTAL_FLAT_TOLERANCE,
-                abs(submitted_total) * cls.TOTAL_PERCENT_TOLERANCE,
-            )
-            if difference > tolerance:
+            if difference > cls.TOTAL_ROUNDING_TOLERANCE:
                 errors.append(
                     "total_amount does not reconcile with the submitted item amounts."
                 )
